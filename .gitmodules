@@ -1,0 +1,6 @@
+[submodule "TCC"]
+	path = TCC
+	url = https://github.com/JuhDeFreitas/TCC.git
+[submodule "embarcado"]
+	path = embarcado
+	url = https://github.com/JuhDeFreitas/TCC.git
