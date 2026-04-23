@@ -38,11 +38,19 @@ void start_mpu6050(void *pvParameters)
     //ESP_LOGI(TAG, "I2C inicializado");
 
     // Tira o MPU6050 do sleep
-    ESP_ERROR_CHECK(mpu6050_write_byte(MPU6050_REG_PWR_MGMT_1, 0x00));
+    esp_err_t ret_1 = mpu6050_write_byte(MPU6050_REG_PWR_MGMT_1, 0x00);
+    if (ret_1 != ESP_OK) {
+        ESP_LOGE(TAG, "Erro ao acordar MPU6050: %s", esp_err_to_name(ret_1));
+        vTaskDelete(NULL);
+    }
     ESP_LOGI(TAG, "MPU6050 acordado");
 
     uint8_t who_am_i = 0;
-    ESP_ERROR_CHECK(mpu6050_read_bytes(MPU6050_REG_WHO_AM_I, &who_am_i, 1));
+    esp_err_t ret_2 = mpu6050_read_bytes(MPU6050_REG_WHO_AM_I, &who_am_i, 1);
+    if (ret_2 != ESP_OK)    {
+        ESP_LOGE(TAG, "Erro ao ler WHO_AM_I do device: %s", esp_err_to_name(ret_2));
+        vTaskDelete(NULL);
+    }
     ESP_LOGI(TAG, "WHO_AM_I = 0x%02X", who_am_i);
 
     while (1) {
