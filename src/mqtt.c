@@ -1,13 +1,13 @@
-#include "mqtt/mqtt.h"
-#include "mqtt/mqtt_config.h"
+#include "mqtt.h"
+
 
 #include "mqtt_client.h"
 #include "esp_log.h"
+#include "device_state.h"
 
 static const char *TAG = "MQTT";
 static esp_mqtt_client_handle_t client = NULL;
 static bool mqtt_connected = false;
-
 
 static void mqtt_event_handler(void *handler_args, 
                                esp_event_base_t base, 
@@ -17,10 +17,32 @@ static void mqtt_event_handler(void *handler_args,
     esp_mqtt_event_handle_t event = event_data;
 
     switch ((esp_mqtt_event_id_t)event_id) {
+        case MQTT_EVENT_DATA: {
+            char data[event->data_len + 1];
+
+            memcpy(data, event->data, event->data_len);
+            data[event->data_len] = '\0';
+
+            ESP_LOGI(TAG, "CMD: %s", data);
+
+            if (strcmp(data, "start") == 0) {
+                set_device_state(DEVICE_START);
+
+            } else if (strcmp(data, "stop") == 0) {
+                set_device_state(DEVICE_STOP);
+
+            } else if (strcmp(data, "reboot") == 0) {
+                set_device_state(DEVICE_REBOOT);
+            }
+
+            break;
+        }
+
         case MQTT_EVENT_CONNECTED:
             mqtt_connected = true;
             ESP_LOGI(TAG, "Conectado ao broker MQTT");
-            esp_mqtt_client_subscribe(client, MQTT_TOPIC_SUBSCRIBE, 1);
+            esp_mqtt_client_subscribe(client, TOPIC_COMMAND, 1);
+            esp_mqtt_client_subscribe(client, TOPIC_CONFIG, 1);
             break;
 
         case MQTT_EVENT_DISCONNECTED:
@@ -45,25 +67,14 @@ static void mqtt_event_handler(void *handler_args,
     }
 }
 
-void build_mqtt_topic(char *topic, size_t size,
-                      const char *device_id,
-                      const char *category)
-{
-    snprintf(topic, size,
-             "health/%s/%s",
-             device_id,
-             category
-            );
-}
-
 void mqtt_init(void)
 {
     ESP_LOGI(TAG, "Inicializando MQTT...");
-    ESP_LOGI(TAG, "Broker URI: %s", MQTT_BROKER_URI);
+    ESP_LOGI(TAG, "Broker URI: %s", BROKER);
 
     esp_mqtt_client_config_t mqtt_cfg = {
-        .broker.address.uri = MQTT_BROKER_URI,
-        .credentials.client_id = MQTT_CLIENT_ID
+        .broker.address.uri = BROKER,
+        .credentials.client_id = BROKER
     };
 
     client = esp_mqtt_client_init(&mqtt_cfg);
@@ -87,8 +98,10 @@ void mqtt_init(void)
     ESP_LOGI(TAG, "Cliente MQTT iniciado");
 }
 
-void mqtt_publish_message(const char *payload)
+void mqtt_publish_message(const char *topic,
+                          const void *payload)
 {
+    int len = strlen((const char *)payload);
     if (client == NULL) {
         ESP_LOGW(TAG, "Cliente MQTT nulo");
         return;
@@ -99,15 +112,21 @@ void mqtt_publish_message(const char *payload)
         return;
     }
 
-    int msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC_PUBLISH, payload, 0, 1, 0);
+    int msg_id = esp_mqtt_client_publish(client,
+                                         topic,
+                                         (const char *)payload,
+                                         len,
+                                         1,
+                                         0);
+
     if (msg_id < 0) {
         ESP_LOGE(TAG, "Falha ao publicar mensagem");
     } else {
-        ESP_LOGI(TAG, "Mensagem enfileirada, msg_id=%d, payload=%s", msg_id, payload);
+        ESP_LOGI(TAG, "Mensagem enfileirada, msg_id=%d, len=%d", msg_id, (int)len);
     }
 }
 
-void mqtt_subscribe(void)
+void mqtt_subscribe(char *topic)
 {
     if (client == NULL) {
         ESP_LOGW(TAG, "Cliente MQTT nulo");
@@ -119,11 +138,21 @@ void mqtt_subscribe(void)
         return;
     }
 
-    int msg_id = esp_mqtt_client_subscribe(client, MQTT_TOPIC_SUBSCRIBE, 1);
+    int msg_id = esp_mqtt_client_subscribe(client, topic, 1);
     if (msg_id < 0) {
         ESP_LOGE(TAG, "Falha ao se inscrever no tópico");
     } else {
-        ESP_LOGI(TAG, "Inscrição solicitada no tópico: %s", MQTT_TOPIC_SUBSCRIBE);
+        ESP_LOGI(TAG, "Inscrição solicitada no tópico: %s", topic);
     }
 }
 
+void mqtt_stop(void)
+{
+    if (client != NULL) {
+        esp_mqtt_client_stop(client);
+        esp_mqtt_client_destroy(client);
+        client = NULL;
+        mqtt_connected = false;
+        ESP_LOGI(TAG, "Cliente MQTT parado e destruído");
+    }
+}
