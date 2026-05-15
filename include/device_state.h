@@ -7,8 +7,10 @@ typedef enum {
     DEVICE_REBOOT
 } device_state_t;
 
-extern device_state_t device_state;
+void device_state_init(void);
 
 void set_device_state(device_state_t new_state);
+
+device_state_t get_device_state(void);
 
 #endif
