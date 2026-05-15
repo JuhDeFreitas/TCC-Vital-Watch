@@ -1,17 +1,18 @@
-#include "max30102/max30102.h"
-#include "max30102/max30102_driver.h"
+#include "sensors/max30102.h"
+#include "sensors/max30102_driver.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include <math.h>
-#include "mqtt.h"
+#include "mqtt/mqtt.h"
+#include "mqtt/payload.h"
 
 extern QueueHandle_t sensor_queue;
 
 static const char *TAG = "MAX30102_APP";
 
-/* Funções privadas auxiliares */
+/* Funções privadas auxiliares ====================================================== */
 
 static float mean(const uint32_t *x,int n){
     float s=0;
@@ -113,15 +114,22 @@ static esp_err_t max30102_process(uint32_t *red,
     return ESP_OK;
 }
 
-static void max30102_publish(const max30102_data_t *m)
+static void max30102_publish(const max30102_data_t *metrics)
 {
-    if (xQueueSend(sensor_queue, m, portMAX_DELAY) != pdTRUE) {
-        ESP_LOGW(TAG, "Falha ao enviar para fila");
+    char payload[256];
+
+    if ( build_max30102_payload(metrics, payload, sizeof(payload)) )
+    {
+        mqtt_publish_message(TOPIC_VITALS, payload);
+    }
+    else
+    {
+        ESP_LOGE(TAG, "Erro ao criar payload JSON");
     }
 }
 
 
-/* Função principal (Task) */
+/* Função principal (Task) ======================================================== */
 
 void max30102_task(void *pv)
 {
@@ -155,9 +163,8 @@ void max30102_task(void *pv)
              metrics.spo2_percent,
              metrics.spo2_valid);
 
-        /* Publicação na fila */
-        //max30102_publish(&metrics);
-        mqtt_publish_message(TOPIC_SPO2, &metrics);
+        /* Publicação via MQTT */
+        max30102_publish(&metrics);
 
         vTaskDelay(pdMS_TO_TICKS(500));
     }

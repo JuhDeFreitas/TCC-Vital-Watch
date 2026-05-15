@@ -1,9 +1,9 @@
-#include "mpu6050.h"
+#include "sensors/mpu6050.h"
 #include "i2c.h"
 #include "freertos/FreeRTOS.h"
 #include "esp_log.h"
-#include "data_processing.h"
-#include "mqtt.h"
+
+#include "mqtt/mqtt.h"
 
 static const char *TAG = "MPU6050";
 

@@ -1,7 +1,8 @@
-#include "max30102/max30102_driver.h"
+#include "sensors/max30102_driver.h"
 #include "i2c.h"
 #include "esp_log.h"
 #include "freertos/task.h"
+
 
 // Endereço I2C do MAX30102
 #define MAX30102_ADDR       0x57
