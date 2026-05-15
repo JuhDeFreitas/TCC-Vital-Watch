@@ -5,8 +5,7 @@
 #include "freertos/task.h"
 
 #include "i2c.h"
-#include "mpu6050.h"
-//#include ""
+#include "sensors/mpu6050.h"
 
 esp_err_t i2c_master_init(void)
 {

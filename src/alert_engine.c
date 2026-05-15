@@ -1,6 +1,5 @@
 
 #include "alert_engine.h"
-#include "data_processing.h"
 
 #define SPO2_MAX_VALUE 100
 #define SPO2_MIN_VALUE 0
