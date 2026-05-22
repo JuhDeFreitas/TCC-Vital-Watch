@@ -1,16 +1,23 @@
 #include "sensors/max30102.h"
 #include "sensors/max30102_driver.h"
-#include "esp_log.h"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+
+#include "esp_log.h"
+#include "esp_err.h"
+
 #include <math.h>
+
 #include "mqtt/mqtt.h"
 #include "mqtt/payload.h"
 
-extern QueueHandle_t sensor_queue;
+//extern QueueHandle_t sensor_queue;
 
 static const char *TAG = "MAX30102_APP";
+
+max30102_data_t g_max_data; 
 
 /* Funções privadas auxiliares ====================================================== */
 
@@ -114,7 +121,7 @@ static esp_err_t max30102_process(uint32_t *red,
     return ESP_OK;
 }
 
-static void max30102_publish(const max30102_data_t *metrics)
+/*static void max30102_publish(const max30102_data_t *metrics)
 {
     char payload[256];
 
@@ -126,13 +133,15 @@ static void max30102_publish(const max30102_data_t *metrics)
     {
         ESP_LOGE(TAG, "Erro ao criar payload JSON");
     }
-}
+}*/
 
 
 /* Função principal (Task) ======================================================== */
 
-void max30102_task(void *pv)
+void max30102_task(void *pvParameters)
 {
+    //QueueHandle_t queue = (QueueHandle_t) pvParameters;
+
     static uint32_t red[MAX30102_BUFFER_SIZE];
     static uint32_t ir[MAX30102_BUFFER_SIZE];
 
@@ -156,15 +165,16 @@ void max30102_task(void *pv)
         }
 
         /* Log dos valores obtidos*/
-        ESP_LOGI(TAG,
-             "HR=%.1f (%d) | SpO2=%.1f (%d)",
-             metrics.heart_rate_bpm,
-             metrics.hr_valid,
-             metrics.spo2_percent,
-             metrics.spo2_valid);
+        //ESP_LOGI(TAG,"HR=%.1f (%d) | SpO2=%.1f (%d)",
+        //     metrics.heart_rate_bpm,
+        //     metrics.hr_valid,
+        //     metrics.spo2_percent,
+        //     metrics.spo2_valid);
 
-        /* Publicação via MQTT */
-        max30102_publish(&metrics);
+        /* Publicação do valores */
+        //max30102_publish(&metrics);
+        g_max_data = metrics;
+        //xQueueOverwrite(queue, &metrics);
 
         vTaskDelay(pdMS_TO_TICKS(500));
     }

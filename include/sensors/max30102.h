@@ -10,4 +10,6 @@ typedef struct {
     bool spo2_valid;
 } max30102_data_t;
 
-void max30102_task();
+extern max30102_data_t g_max_data; 
+
+void max30102_task(void *pvParameters);

@@ -7,6 +7,8 @@
 
 static const char *TAG = "MPU6050";
 
+mpu6050_data_t g_mpu_data;
+
 /* Driver MPU6050 */
 
 esp_err_t mpu6050_write_byte(uint8_t reg, uint8_t data)
@@ -131,6 +133,8 @@ static esp_err_t mpu6050_read_data(mpu6050_data_t *out)
 /* Task */
 void mpu6050_task(void *pvParameters)
 {
+    //QueueHandle_t queue = (QueueHandle_t) pvParameters;
+
     if (wakeup_mpu6050() != ESP_OK) {
         vTaskDelete(NULL);
     }
@@ -144,19 +148,20 @@ void mpu6050_task(void *pvParameters)
 
         if (mpu6050_read_data(&data) == ESP_OK) {
 
-            ESP_LOGI(TAG,
-                "ACC[%d %d %d] GYRO[%d %d %d] TEMP=%.2f",
-                data.accel_x,
-                data.accel_y,
-                data.accel_z,
-                data.gyro_x,
-                data.gyro_y,
-                data.gyro_z,
-                data.temperature
-            );
+            //ESP_LOGI(TAG,
+            //    "ACC[%d %d %d] GYRO[%d %d %d] TEMP=%.2f",
+            //    data.accel_x,
+            //    data.accel_y,
+            //    data.accel_z,
+            //    data.gyro_x,
+            //    data.gyro_y,
+            //    data.gyro_z,
+            //    data.temperature
+            //);
 
-            /* Publicação no Broker MQTT */
-            mqtt_publish_message(TOPIC_HR, &data);
+            //xQueueOverwrite(queue, &data);
+            g_mpu_data = data; 
+            //mqtt_publish_message(TOPIC_HR, &data);
 
         } else {
             ESP_LOGW(TAG, "Erro na leitura do MPU6050");
@@ -165,3 +170,5 @@ void mpu6050_task(void *pvParameters)
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
+
+

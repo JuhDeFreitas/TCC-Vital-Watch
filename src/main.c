@@ -6,6 +6,7 @@
 #include "sensors/mpu6050.h"
 #include "sensors/max30102.h"
 #include "sensors/max30102_driver.h"
+#include "sensor_processing.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -21,11 +22,12 @@ static const char *TAG = "MAIN";
 // Mutex global do barramento I2C
 SemaphoreHandle_t i2c_mutex = NULL;
 
-TaskHandle_t mpu6050_handle = NULL;
-TaskHandle_t max30102_handle = NULL;
+//TaskHandle_t mpu6050_handle = NULL;
+//TaskHandle_t max30102_handle = NULL;
+
 
 /* Funções auxiliares */
-
+/*
 void init_sensors(void)
 {
     ESP_LOGI(TAG, "Inicialização dos sensores...");
@@ -46,7 +48,9 @@ void init_sensors(void)
         5,
         &max30102_handle  
     );
-}
+
+
+}*/
 
 
 static void system_init(void)
@@ -56,8 +60,8 @@ static void system_init(void)
     wifi_init();
     wifi_start();
     while(!wifi_is_connected()) {
-        ESP_LOGE(TAG, "Falha ao iniciar Wi-Fi.");
-        vTaskDelay(pdMS_TO_TICKS(2500));
+        //ESP_LOGE(TAG, "Falha ao iniciar Wi-Fi.");
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
 
     device_state_init();
@@ -66,12 +70,14 @@ static void system_init(void)
     start_i2c();
     mqtt_init();
 
-    // cria task de sensores (já suspendemos depois)
-    init_sensors();
+    sensor_processing_init();
+
+    // cria task de sensores
+    //init_sensors();
 
     // garante que começam parados
-    if (mpu6050_handle) vTaskSuspend(mpu6050_handle);
-    if (max30102_handle) vTaskSuspend(max30102_handle);
+    //if (mpu6050_handle) vTaskSuspend(mpu6050_handle);
+    //if (max30102_handle) vTaskSuspend(max30102_handle);
 }
 
 

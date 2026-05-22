@@ -19,15 +19,23 @@ typedef struct {
     float temperature;
 } mpu6050_data_t;
 
-/** Function prototypes */
+extern mpu6050_data_t g_mpu_data;
 
-/** \brief Write a byte to a register */
+/** Function prototypes  ================================================= */
+
+/** \brief Write a byte to a register
+ * 
+ */
 esp_err_t mpu6050_write_byte(uint8_t reg, uint8_t data);
 
-/** \brief Read bytes from a register */
+/** \brief Read bytes from a register 
+ * 
+*/
 esp_err_t mpu6050_read_bytes(uint8_t reg, uint8_t *data, size_t len);
 
-/** \brief Start the MPU6050 task */
+/** \brief Start the MPU6050 task
+ * 
+ */
 void mpu6050_task(void *pvParameters);
 
 #endif // MPU6050_H
