@@ -5,11 +5,10 @@
 #include "mqtt/mqtt.h"
 #include "i2c.h"
 #include "sensors/mpu6050.h"
-#include "sensors/mpu6050_driver.h"
 #include "sensors/motion_detector.h"
 #include "sensors/max30102.h"
 #include "sensors/max30102_driver.h"
-#include "sensor_processing.h"
+#include "alert_manager.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -23,8 +22,11 @@
 #define I2C_SCL 9
 
 // Declarações externas para tasks e handles do MPU6050
-extern void motion_task(void *pvParameters);
-extern TaskHandle_t motion_task_handle;
+extern void mpu_motion_task(void *pvParameters);
+
+extern TaskHandle_t mpu_motion_task_handle;
+
+
 
 static const char *TAG = "MAIN";
 
@@ -34,7 +36,7 @@ static const char *TAG = "MAIN";
 SemaphoreHandle_t i2c_mutex = NULL;
 
 //TaskHandle_t mpu6050_handle = NULL;
-//TaskHandle_t max30102_handle = NULL;
+TaskHandle_t max30102_handle = NULL;
 
 
 /* Funções auxiliares */
@@ -69,7 +71,6 @@ static void system_init(void)
     ESP_LOGI(TAG, "Configurando sistema...");
 
     wifi_init();
-    wifi_start();
     while(!wifi_is_connected()) {
         //ESP_LOGE(TAG, "Falha ao iniciar Wi-Fi.");
         vTaskDelay(pdMS_TO_TICKS(5000));
@@ -81,14 +82,18 @@ static void system_init(void)
     start_i2c();
     mqtt_init();
 
-    sensor_processing_init();
+    xTaskCreate(
+        max30102_task,
+        "MAX30102 Task",
+        8192,
+        NULL,
+        5,
+        &max30102_handle  
+    );
 
-    // cria task de sensores
-    //init_sensors();
+    /*inicializa o sensor de movimento*/
+    mpu_init();
 
-    // garante que começam parados
-    //if (mpu6050_handle) vTaskSuspend(mpu6050_handle);
-    //if (max30102_handle) vTaskSuspend(max30102_handle);
 }
 
 
@@ -100,43 +105,45 @@ void app_main(void)
     ESP_LOGI(TAG, "_______________________________");
     ESP_LOGI(TAG, "_________ Vital Watch _________");
 
-    i2c_config_t conf = {
-        .mode = I2C_MODE_MASTER,
-        .sda_io_num = I2C_SDA,
-        .scl_io_num = I2C_SCL,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master.clk_speed = 400000
-    };
+    /* Inicializa os sensores */
+    i2c_master_init();
+    mpu_init();
+    
+    /* Configura GPIO + ISR  */
+    mpu_gpio_interrupt_init();
 
-    i2c_param_config(I2C_NUM_0, &conf);
-
-    i2c_driver_install(
-        I2C_NUM_0,
-        conf.mode,
-        0,
-        0,
-        0
-    );  
-
-    mpu6050_init();
-
+    /* Inicializa a task do sensor de movimento */
     xTaskCreate(
-        motion_task,
-        "motion_task",
+        mpu_motion_task,
+        "MP6050 Motion Task",
         4096,
         NULL,
         5,
-        &motion_task_handle
+        &mpu_motion_task_handle
     );
-    
-    mpu_gpio_interrupt_init();
 
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    mpu6050_enable_motion_interrupt();
+    /* Habilita/Configura o interrupt de movimento do MPU6050 */
+    mpu_config_motion_interrupt();
 
     ESP_LOGI("MAIN", "System started");
+
+    /* Inicializa a task do gerenciador de alertas */
+    xTaskCreate(
+        alert_manager_task,
+        "alert_manager_task",
+        4096,
+        NULL,
+        5,
+        NULL
+    );
+
+    /* LOOP */
+    while (1){
+        ESP_LOGI(TAG, "USER STATUS: %d" , mpu_get_activity_state());
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
 
     //system_init();
 

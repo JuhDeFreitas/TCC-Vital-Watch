@@ -2,40 +2,51 @@
 #define MPU6050_H
 
 #include <stdint.h>
-#include <stddef.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #include "driver/i2c.h"
+#include "sensors/motion_detector.h"
 
-/* MPU6050 register addresses */
-#define MPU6050_ADDR               0x68 
-#define MPU6050_WHO_AM_I_EXPECTED  0x68
-#define MPU6050_REG_WHO_AM_I       0x75
-#define MPU6050_REG_PWR_MGMT_1     0x6B
-#define MPU6050_REG_ACCEL_XOUT_H   0x3B
+/* Private Variables ============================================= */
 
-/* Estrutura para armazenar os dados lidos do MPU6050 */
-typedef struct {
-    int16_t accel_x, accel_y, accel_z;
-    int16_t gyro_x, gyro_y, gyro_z;
-    float temperature;
-} mpu6050_data_t;
+/* Endereço I2C do MPU6050 */
+#define MPU6050_ADDR 0x68
 
-extern mpu6050_data_t g_mpu_data;
+/* Pino de interrupção para wake-up */
+#define MPU6050_INT_PIN GPIO_NUM_4
 
-/** Function prototypes  ================================================= */
+/* Modos de atividade do usuário */
+typedef enum
+{
+    USER_RESTING,
+    USER_WALKING,
+    USER_RUNNING
+} activity_state_t;
 
-/** \brief Write a byte to a register
- * 
- */
-esp_err_t mpu6050_write_byte(uint8_t reg, uint8_t data);
+//extern activity_state_t mpu_state;
 
-/** \brief Read bytes from a register 
- * 
-*/
-esp_err_t mpu6050_read_bytes(uint8_t reg, uint8_t *data, size_t len);
+/* Public Functions ============================================ */
 
-/** \brief Start the MPU6050 task
- * 
- */
-void mpu6050_task(void *pvParameters);
+uint8_t mpu_status(void);
 
-#endif // MPU6050_H
+activity_state_t mpu_get_activity_state(void);
+
+void mpu_init(void);
+
+void mpu_config_motion_interrupt(void);
+
+void mpu_read_accel(
+    int16_t *ax,
+    int16_t *ay,
+    int16_t *az
+);
+
+void mpu_gpio_interrupt_init(void);
+
+void mpu_motion_task(void *arg);
+
+
+
+#endif

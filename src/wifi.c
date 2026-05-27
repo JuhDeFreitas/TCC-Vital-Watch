@@ -159,11 +159,12 @@ void wifi_init(void)
 
     ESP_LOGI(TAG, "Configurando SSID e senha...");
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+
+    wifi_start();
 }
 
 void wifi_start(void)
 {
-    //ESP_LOGI(TAG, "Iniciando Wi-Fi...");
     ESP_ERROR_CHECK(esp_wifi_start());
 }
 
