@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define MAX_TASK_INTERVAL_MS 1000
+
 typedef struct {
     float heart_rate_bpm;
     float spo2_percent;

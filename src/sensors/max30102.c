@@ -121,7 +121,7 @@ static esp_err_t max30102_process(uint32_t *red,
     return ESP_OK;
 }
 
-/*static void max30102_publish(const max30102_data_t *metrics)
+static void max30102_publish(const max30102_data_t *metrics)
 {
     char payload[256];
 
@@ -133,7 +133,7 @@ static esp_err_t max30102_process(uint32_t *red,
     {
         ESP_LOGE(TAG, "Erro ao criar payload JSON");
     }
-}*/
+}
 
 
 /* Função principal (Task) ======================================================== */
@@ -172,10 +172,10 @@ void max30102_task(void *pvParameters)
         //     metrics.spo2_valid);
 
         /* Publicação do valores */
-        //max30102_publish(&metrics);
+        max30102_publish(&metrics);
         g_max_data = metrics;
         //xQueueOverwrite(queue, &metrics);
 
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(MAX_TASK_INTERVAL_MS));
     }
 }

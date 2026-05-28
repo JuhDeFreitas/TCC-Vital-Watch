@@ -7,7 +7,7 @@
 #include "i2c.h"
 #include "sensors/mpu6050.h"
 
-esp_err_t i2c_master_init(void)
+esp_err_t i2c_init(void)
 {
     i2c_config_t conf = {
         .mode = I2C_MODE_MASTER,
@@ -30,9 +30,9 @@ esp_err_t i2c_master_init(void)
     );
 }
 
-void start_i2c(void)
+void i2c_start(void)
 {
-    ESP_ERROR_CHECK(i2c_master_init());
+    ESP_ERROR_CHECK(i2c_init());
     ESP_LOGI("I2C", "I2C Master inicializado");
 }
  

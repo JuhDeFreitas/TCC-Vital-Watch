@@ -3,18 +3,32 @@
 
 #include <stdbool.h>
 
-/** \brief WiFi configuration parameters */
+/** Password and Wi-Fi network SSID */
 #define WIFI_SSID     "Julia"
 #define WIFI_PASSWORD "13020011"
 
-//#define WIFI_SSID     "WLL-Inatel"
-//#define WIFI_PASSWORD "Inatelsemfio"
 
-/* Function prototypes */
+/**
+ * @brief Initialize the Wi-Fi subsystem and configure the station mode.
+ */
 void wifi_init(void);
+
+/**
+ * @brief Start the Wi-Fi driver.
+ */
 void wifi_start(void);
+
+/**
+ * @brief Check whether the device is connected to a Wi-Fi network.
+ *
+ * @return true if connected.
+ * @return false otherwise.
+ */
 bool wifi_is_connected(void);
 
-// wifi_config() - função para configurar o WiFi
+/**
+ * @brief Attempt to reconnect to the configured Wi-Fi network.
+ */
+void wifi_reconect(void);
 
 #endif

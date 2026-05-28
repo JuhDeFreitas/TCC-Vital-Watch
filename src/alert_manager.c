@@ -27,31 +27,45 @@ static alert_state_t hr_alert      = {0};
 static alert_state_t spo2_alert    = {0};
 //static alert_state_t battery_alert = {0};
 
-static activity_state_t last_mpu_state = {0};
+static activity_state_t last_mpu_state = USER_RESTING;
+static activity_state_t mpu_state = USER_RESTING; 
 static max30102_data_t last_max_data  = {0};
 
-static activity_state_t mpu_state = USER_RESTING; 
-
 /* =========================================================
- * ALERT PAYLOAD
+ * PRIVATE FUNCTIONS
  * ========================================================= */
 
-static void trigger_alert(const char *severity)
+ /**
+ * @brief Publishes an alert message through MQTT.
+ *
+ * Builds an alert payload and sends it to the alert topic.
+ *
+ * @param type Alert type.
+ * @param severity Alert severity level.
+ */
+static void trigger_alert(const char *type, const char *severity)
 {
     char buffer[128];
 
-    if (build_alert_payload(severity, buffer, sizeof(buffer)))
+    if (build_alert_payload(type, severity, buffer, sizeof(buffer)))
     {
-        // mqtt_publish(buffer);
+        mqtt_publish_message(TOPIC_ALERTS, buffer);
 
-        ESP_LOGW(TAG, "ALERT TRIGGERED [%s]", severity);
+        ESP_LOGW(TAG, "ALERT TRIGGERED [%s][%s]", severity, type);
     }
 }
 
-/* =========================================================
- * SENSOR VALIDATION
- * ========================================================= */
-
+/**
+ * @brief Validates MAX30102 measurements.
+ *
+ * Checks if heart rate and SpO2 values are valid
+ * and within an acceptable range.
+ *
+ * @param max Pointer to sensor data.
+ *
+ * @return true if data is valid.
+ * @return false otherwise.
+ */
 static bool max_data_valid(const max30102_data_t *max)
 {
     if (isnan(max->heart_rate_bpm) ||
@@ -69,6 +83,7 @@ static bool max_data_valid(const max30102_data_t *max)
     return true;
 }
 
+
 /* =========================================================
  * FALL DETECTION
  * ========================================================= */
@@ -84,32 +99,78 @@ static bool max_data_valid(const max30102_data_t *max)
 //}
 
 /* =========================================================
- * HR LEVEL DETECTION
+ * LEVEL DETECTION
  * ========================================================= */
 
+/**
+ * @brief Determines the heart rate health level.
+ *
+ * Heart rate thresholds are selected according to
+ * the current user activity state.
+ *
+ * @param max Pointer to sensor data.
+ *
+ * @return Detected health level.
+ */
 static health_level_t detect_hr_level(const max30102_data_t *max)
 {
     float hr = max->heart_rate_bpm;
 
-    if (hr <= HR_VERY_LOW_MAX)
+    int very_low_max;
+    int low_max;
+    int normal_max;
+    int high_max;
+
+    switch(mpu_state){
+        case USER_RESTING:
+            very_low_max = HR_REST_VERY_LOW_MAX;
+            low_max      = HR_REST_LOW_MAX;
+            normal_max   = HR_REST_NORMAL_MAX;
+            high_max     = HR_REST_HIGH_MAX;
+            break;
+
+        //case USER_WALKING:
+        //    very_low_max = HR_WALK_VERY_LOW_MAX;
+        //    low_max      = HR_WALK_LOW_MAX;
+        //    normal_max   = HR_WALK_NORMAL_MAX;
+        //    high_max     = HR_WALK_HIGH_MAX;
+        //    break;
+
+        case USER_RUNNING:
+            very_low_max = HR_RUN_VERY_LOW_MAX;
+            low_max      = HR_RUN_LOW_MAX;
+            normal_max   = HR_RUN_NORMAL_MAX;
+            high_max     = HR_RUN_HIGH_MAX;
+            break;
+
+        default:
+
+            return LEVEL_INVALID;
+    }
+
+    if (hr <= very_low_max)
         return LEVEL_VERY_LOW;
 
-    if (hr <= HR_LOW_MAX)
+    if (hr <= low_max)
         return LEVEL_LOW;
 
-    if (hr <= HR_NORMAL_MAX)
+    if (hr <= normal_max)
         return LEVEL_NORMAL;
 
-    if (hr <= HR_HIGH_MAX)
+    if (hr <= high_max)
         return LEVEL_HIGH;
 
     return LEVEL_VERY_HIGH;
 }
 
-/* =========================================================
- * SPO2 LEVEL DETECTION
- * ========================================================= */
 
+/**
+ * @brief Determines the SpO2 health level.
+ *
+ * @param max Pointer to sensor data.
+ *
+ * @return Detected health level.
+ */
 static health_level_t detect_spo2_level(const max30102_data_t *max)
 {
     float spo2 = max->spo2_percent;
@@ -123,17 +184,51 @@ static health_level_t detect_spo2_level(const max30102_data_t *max)
     if (spo2 <= SPO2_NORMAL_MAX)
         return LEVEL_NORMAL;
 
-    return LEVEL_VERY_HIGH;
+    return LEVEL_INVALID;
 }
+
+
+/**
+ * @brief Converts a health level to a string.
+ *
+ * @param level Health level.
+ *
+ * @return String representation of the level.
+ */
+static const char *health_level_to_string(health_level_t level)
+{
+    switch(level)
+    {
+        case LEVEL_VERY_LOW:  return "very_low";
+        case LEVEL_LOW:       return "low";
+        case LEVEL_NORMAL:    return "normal";
+        case LEVEL_HIGH:      return "high";
+        case LEVEL_VERY_HIGH: return "very_high";
+
+        default:              return "unknown";
+    }
+}
+
 
 /* =========================================================
  * ALERT DEBOUNCE
  * ========================================================= */
 
-static void update_alert(
-    alert_state_t *alert,
-    bool condition,
-    const char *severity)
+ /**
+ * @brief Updates alert state using debounce validation.
+ *
+ * Triggers the alert only if the condition remains
+ * active for a defined number of consecutive checks.
+ * 
+ * @param alert Alert state structure.
+ * @param condition Alert condition.
+ * @param type Alert type.
+ * @param severity Alert severity.
+ */
+static void update_alert(   alert_state_t *alert, 
+                            bool condition, 
+                            const char *type,
+                            const char *severity)
 {
     if (condition){
         alert->counter++;
@@ -144,7 +239,7 @@ static void update_alert(
     }
 
     if (alert->counter >= ALERT_DEBOUNCE_COUNT && !alert->active){
-        trigger_alert(severity);
+        trigger_alert(type, severity);
 
         alert->active = true;
     }
@@ -154,18 +249,32 @@ static void update_alert(
  * CHANGE DETECTION
  * ========================================================= */
 
+ /**
+ * @brief Detects changes in user activity state.
+ *
+ * @return true if the state changed.
+ * @return false otherwise.
+ */
 static bool mpu_state_changed(void)
 {   
     mpu_state = mpu_get_activity_state();
 
     if( mpu_state != last_mpu_state ){
         ESP_LOGI(TAG, "MPU STATE CHANGED: %d -> %d", last_mpu_state, mpu_state);
+        last_mpu_state = mpu_state;
         return true;
     }
 
     return false;
 }
 
+
+/**
+ * @brief Detects significant changes in biometric data.
+ *
+ * @return true if data changed.
+ * @return false otherwise.
+ */
 static bool max_data_changed(void)
 {
     return (
@@ -177,38 +286,17 @@ static bool max_data_changed(void)
     );
 }
 
-/* =========================================================
- * MPU UPDATE
- * ========================================================= */
-
-//static void handle_mpu_update(void)
-//{
-    //bool fall_detected;
-
-    //last_mpu_state = mpu_get_activity_state();
-
-    //fall_detected = detect_fall(&g_mpu_state);
-
-    //ESP_LOGI(
-    //    TAG,
-    //    "[MPU] AX=%d AY=%d AZ=%d FALL=%d",
-    //    mpu_state.accel_x,
-    //    mpu_state.accel_y,
-    //    mpu_state.accel_z,
-    //    fall_detected
-    //);
-
-    //update_alert(
-    //    &fall_alert,
-    //    fall_detected,
-    //    "critical"
-    //);
-//}
 
 /* =========================================================
- * MAX30102 UPDATE
+ * MAX30102 UPDATE HANDLER
  * ========================================================= */
 
+/**
+ * @brief Processes MAX30102 measurements.
+ *
+ * Validates sensor data, evaluates health levels
+ * and updates alert states.
+ */
 static void handle_max_update(void)
 {
     health_level_t hr_level;
@@ -231,10 +319,13 @@ static void handle_max_update(void)
     spo2_level = detect_spo2_level(&g_max_data);
 
     /* Determine alert conditions */
-    hr_alert_condition = (hr_level == LEVEL_VERY_LOW) || 
+    hr_alert_condition = (hr_level == LEVEL_VERY_LOW)   || 
+                         (hr_level == LEVEL_LOW)        ||
+                         (hr_level == LEVEL_HIGH)       ||
                          (hr_level == LEVEL_VERY_HIGH);
 
-    spo2_alert_condition = (spo2_level == LEVEL_VERY_LOW);
+    spo2_alert_condition =  (spo2_level == LEVEL_VERY_LOW) ||
+                            (spo2_level == LEVEL_LOW);
 
     ESP_LOGI(
         TAG,
@@ -249,13 +340,15 @@ static void handle_max_update(void)
     update_alert(
         &hr_alert,
         hr_alert_condition,
-        "warning"
+        "heart_rate",
+        health_level_to_string(hr_level)
     );
 
     update_alert(
         &spo2_alert,
         spo2_alert_condition,
-        "critical"
+        "spo2",
+        health_level_to_string(spo2_level)
     );
 }
 
@@ -266,17 +359,12 @@ static void handle_max_update(void)
 void alert_manager_task(void *arg)
 {
     while (1)
-    {
-        //if (mpu_state_changed())
-        //{
-        //    handle_mpu_update();
-        //}
-    
+    {    
         if (max_data_changed() || mpu_state_changed())
         {
             handle_max_update();
         }
 
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(TASK_ALERT_INTERVAL_MS));
     }
 }

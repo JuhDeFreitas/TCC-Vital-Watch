@@ -24,8 +24,11 @@ bool build_max30102_payload(const max30102_data_t *metrics, char *buffer, size_t
  *
  * @return true se sucesso, false caso contrário.
  */
-bool build_alert_payload(const char *severity, char *buffer, size_t buffer_size);
-
+bool build_alert_payload(
+                        const char *type, 
+                        const char *severity, 
+                        char *buffer, 
+                        size_t buffer_size);
 
 #endif
 

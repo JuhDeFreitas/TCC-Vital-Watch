@@ -12,23 +12,31 @@
 
 /* ================= CONFIG ================= */
 
+#define TASK_ALERT_INTERVAL_MS        2000
+
 // ======================
 // HEART RATE (BPM)
 // ======================
 
-#define HR_VERY_LOW_MAX    40
-#define HR_LOW_MAX         59
-#define HR_NORMAL_MAX      100
-#define HR_HIGH_MAX        140
+#define HR_REST_VERY_LOW_MAX     40
+#define HR_REST_LOW_MAX          60
+#define HR_REST_NORMAL_MAX      100
+#define HR_REST_HIGH_MAX        140
+
+#define HR_RUN_VERY_LOW_MAX      70
+#define HR_RUN_LOW_MAX          100
+#define HR_RUN_NORMAL_MAX       170
+#define HR_RUN_HIGH_MAX         190
+
 // above this = VERY HIGH
 
 // ======================
 // SPO2 (%)
 // ======================
 
-#define SPO2_VERY_LOW_MAX  84
-#define SPO2_LOW_MAX       94
-#define SPO2_NORMAL_MAX    100
+#define SPO2_VERY_LOW_MAX  88       // < 88 - hipoxemia
+#define SPO2_LOW_MAX       94       // < 94 - atenção
+#define SPO2_NORMAL_MAX    100      // > 90 - esperado
 // above 100 can be treated as sensor error
 
 
@@ -44,6 +52,7 @@
 
 typedef enum
 {
+    LEVEL_INVALID = -1,
     LEVEL_VERY_LOW,
     LEVEL_LOW,
     LEVEL_NORMAL,

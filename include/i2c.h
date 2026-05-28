@@ -13,7 +13,7 @@
 #define I2C_MASTER_RX_BUF_DISABLE  0  
 
 /** \brief Inicializa o mestre I2C */
-esp_err_t i2c_master_init(void);
-void start_i2c(void);
+esp_err_t i2c_init(void);
+void i2c_start(void);
 
 #endif // I2C_H

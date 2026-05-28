@@ -1,3 +1,12 @@
+/**
+ * @file payload.c
+ * @brief Builds JSON payloads for MQTT communication.
+ *
+ * This module provides helper functions to create JSON messages
+ * containing biometric measurements and system alerts.
+ * 
+ */
+
 #include <time.h>
 
 #include "cJSON.h"
@@ -32,9 +41,13 @@ bool build_max30102_payload(const max30102_data_t *metrics, char *buffer, size_t
 }
 
 
-bool build_alert_payload(const char *severity, char *buffer, size_t buffer_size)
+bool build_alert_payload(
+                        const char *type, 
+                        const char *severity, 
+                        char *buffer, 
+                        size_t buffer_size)
 {
-    if (severity == NULL || buffer == NULL){
+    if (type == NULL || severity == NULL || buffer == NULL){
         return false;
     }
 
@@ -47,7 +60,7 @@ bool build_alert_payload(const char *severity, char *buffer, size_t buffer_size)
     time_t now;
     time(&now);
 
-    cJSON_AddStringToObject(root, "type", "fall");
+    cJSON_AddStringToObject(root, "type", type);
     cJSON_AddStringToObject(root, "severity", severity);
     cJSON_AddNumberToObject(root, "timestamp", (double)now);
 
