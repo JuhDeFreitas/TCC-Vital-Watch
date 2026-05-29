@@ -1,9 +1,12 @@
 #include <stdio.h>
 
 #include "driver/i2c.h"
+#include "nvs.h"
+#include "nvs_flash.h"
 
 #include "wifi.h"
 #include "mqtt/mqtt.h"
+#include "device_info.h"
 #include "i2c.h"
 
 #include "sensors/mpu6050.h"
@@ -24,9 +27,6 @@
 /* =========================================================
  * I2C CONFIGURATION
  * ========================================================= */
-
-#define I2C_SDA    8
-#define I2C_SCL    9
 
 #define PATIENT_ID "patient_001"
 
@@ -58,6 +58,20 @@ TaskHandle_t max30102_handle = NULL;
 /* =========================================================
  * AUXILIARY FUNCTIONS
  * ========================================================= */
+
+
+ void NVM_storage_init(void){
+
+    /* Initialize NVS flash storage.*/
+    esp_err_t err = nvs_flash_init();
+
+    if (err != ESP_OK)
+    {
+        ESP_LOGW(TAG, "Failed to initialize NVS");
+
+        return;
+    }
+  }
 
 /**
  * @brief Waits until the Wi-Fi connection is established.
@@ -140,7 +154,16 @@ void app_main(void)
     ESP_LOGI(TAG, " ");
     ESP_LOGI(TAG, "=================================");
     ESP_LOGI(TAG, "=========== Vital Watch =========");
-    ESP_LOGI(TAG, "=================================");
+    ESP_LOGI(TAG, "=================================");    
+    ESP_LOGI(TAG, " ");
+
+    /* Initialize persistent storage */
+    NVM_storage_init();
+
+    /* Initialize device identity */
+    device_id_init();
+
+    //ESP_LOGI(TAG, "Device ID: %s", device_get_id());
 
     /* Initialize communication and sensor modules */
     wifi_wait_for_connection();
