@@ -4,6 +4,7 @@
 
 #include "sensors/motion_detector.h"
 #include "sensors/mpu6050.h"
+#include "alert_manager.h"
 
 #include <math.h>
 
@@ -37,8 +38,8 @@ bool detect_running(float ax, float ay, float az)
     magnitude = fabsf(magnitude - 1.0f);
 
     bool peak_detected = (
-        magnitude > PEAK_THRESHOLD &&
-        previous_mag <= PEAK_THRESHOLD
+        magnitude > alert_config.motion_threshold &&
+        previous_mag <= alert_config.motion_threshold
     );
 
     previous_mag = magnitude;
@@ -53,7 +54,7 @@ bool detect_running(float ax, float ay, float az)
 
     last_peak_time = now;
 
-    if ( delta > MIN_INTERVAL_MS && delta < MAX_INTERVAL_MS){
+    if ( delta > alert_config.motion_min_interval_ms && delta < alert_config.motion_max_interval_ms){
         running_steps++;
 
         ESP_LOGI(TAG, "STEP [%d]", running_steps);

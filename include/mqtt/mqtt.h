@@ -16,12 +16,15 @@
 /* Publish */
 #define TOPIC_VITALS  BASE_TOPIC "/vitals"
 #define TOPIC_ALERTS  BASE_TOPIC "/alerts"
-#define TOPIC_SPO2    BASE_TOPIC "/status/spo2"
-#define TOPIC_HR      BASE_TOPIC "/status/heart_rate"
 
 /* Subscribe */
 #define TOPIC_COMMAND BASE_TOPIC "/command"
 #define TOPIC_CONFIG  BASE_TOPIC "/config"
+
+/* Config Especific topics */
+#define TOPIC_CONFIG_WIFI         TOPIC_CONFIG "/wifi"
+#define TOPIC_CONFIG_SAMPLING     TOPIC_CONFIG "/sampling"
+#define TOPIC_CONFIG_THRESHOLDS   TOPIC_CONFIG "/thresholds"
 
 /* Funções do MQTT */
 
@@ -31,7 +34,7 @@ void build_mqtt_topic(char *topic, size_t size,
 void mqtt_init(void);
 void mqtt_publish_message(const char *topic,
                           const void *payload);
-void mqtt_subscribe(char *topic);
+void mqtt_subscribe(const char *topic);
 void mqtt_stop(void);
 void mqtt_start(void);
 

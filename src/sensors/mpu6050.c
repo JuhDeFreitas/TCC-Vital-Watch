@@ -205,7 +205,7 @@ void mpu_motion_task(void *arg)
                 }
             }
 
-            vTaskDelay(pdMS_TO_TICKS(20));
+            vTaskDelay(pdMS_TO_TICKS(40));
         }
     }
 }

@@ -6,6 +6,9 @@
 
 #include "mqtt/payload.h"
 #include "mqtt/mqtt.h"
+#include "device_info.h"
+#include "nvs.h"
+#include "nvs_flash.h"
 
 #include "esp_log.h"
 
@@ -13,14 +16,10 @@
 #include <string.h>
 
 /* =========================================================
- * CONFIG
+ *  Definitions
  * ========================================================= */
 
 static const char *TAG = "ALERT_MANAGER";
-
-/* =========================================================
- * GLOBAL STATES
- * ========================================================= */
 
 //static alert_state_t fall_alert    = {0};
 static alert_state_t hr_alert      = {0};
@@ -30,6 +29,124 @@ static alert_state_t spo2_alert    = {0};
 static activity_state_t last_mpu_state = USER_RESTING;
 static activity_state_t mpu_state = USER_RESTING; 
 static max30102_data_t last_max_data  = {0};
+
+
+alert_config_t alert_config = {
+    .hr_very_low = 39,
+    .hr_low      = 59,
+    .hr_normal   = 100,
+    .hr_high     = 120,
+    .hr_very_high= 200,
+
+    .spo2_very_low = 88,
+    .spo2_low    = 94,
+    .spo2_normal = 100,
+
+    //.fall_threshold = 2.5f,
+
+    .motion_threshold = 0.35f,
+    .motion_min_interval_ms = 180,
+    .motion_max_interval_ms = 500
+};
+
+/* =========================================================
+ * CONFIG ALERT PROPERTIES
+ * ========================================================= */
+
+ #define NVS_NAMESPACE "alert_config"
+ #define NVS_KEY_THRESHOLDS "thresholds"
+
+void set_threshold_config(const char *data)
+{   
+    // Parse received JSON into alert_config (configuration structure)
+    parse_threshold_config(data);
+
+    // Save the new config to NVS
+    nvs_handle_t nvs_handle;
+
+    esp_err_t err = nvs_open(
+        NVS_NAMESPACE,
+        NVS_READWRITE,
+        &nvs_handle
+    );
+
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open NVS");
+        return;
+    }
+
+    err = nvs_set_blob(
+        nvs_handle,
+        NVS_KEY_THRESHOLDS,
+        &alert_config,
+        sizeof(alert_config)
+    );
+
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to save threshold config");
+        nvs_close(nvs_handle);
+        return;
+    }
+
+    nvs_commit(nvs_handle);
+
+    ESP_LOGI(TAG, "Threshold config saved");
+}
+
+
+bool load_threshold_config(void)
+{
+    nvs_handle_t nvs_handle;
+
+    size_t required_size = sizeof(alert_config);
+
+    esp_err_t err = nvs_open(
+        NVS_NAMESPACE,
+        NVS_READWRITE,
+        &nvs_handle
+    );
+
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open NVS");
+        return false;
+    }
+
+    err = nvs_get_blob(
+        nvs_handle,
+        NVS_KEY_THRESHOLDS,
+        &alert_config,
+        &required_size
+    );
+
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "Threshold config loaded");
+        ESP_LOGI(TAG,
+          "HR thresholds: very_low=%u, low=%u, normal=%u, high=%u, very_high=%u",
+            (unsigned int)alert_config.hr_very_low,
+            (unsigned int)alert_config.hr_low,
+            (unsigned int)alert_config.hr_normal,
+            (unsigned int)alert_config.hr_high,
+            (unsigned int)alert_config.hr_very_high);
+        ESP_LOGI(TAG,
+          "SpO2 thresholds: very_low=%.1f, low=%.1f, normal=%.1f",
+            alert_config.spo2_very_low,
+            alert_config.spo2_low,
+            alert_config.spo2_normal);
+        ESP_LOGI(TAG,
+          "Motion threshold: %.2f, min_interval=%.0f ms, max_interval=%.0f ms",
+            alert_config.motion_threshold,
+            alert_config.motion_min_interval_ms,
+            alert_config.motion_max_interval_ms);
+
+        return true;
+    }
+
+    ESP_LOGW(TAG, "Threshold config not found. Using defaults.");
+
+    nvs_close(nvs_handle);
+    return false;
+}
+
 
 /* =========================================================
  * PRIVATE FUNCTIONS
@@ -84,6 +201,8 @@ static bool max_data_valid(const max30102_data_t *max)
 }
 
 
+
+
 /* =========================================================
  * FALL DETECTION
  * ========================================================= */
@@ -123,10 +242,10 @@ static health_level_t detect_hr_level(const max30102_data_t *max)
 
     switch(mpu_state){
         case USER_RESTING:
-            very_low_max = HR_REST_VERY_LOW_MAX;
-            low_max      = HR_REST_LOW_MAX;
-            normal_max   = HR_REST_NORMAL_MAX;
-            high_max     = HR_REST_HIGH_MAX;
+            very_low_max = alert_config.hr_very_low;
+            low_max      = alert_config.hr_low;
+            normal_max   = alert_config.hr_normal;
+            high_max     = alert_config.hr_high;
             break;
 
         //case USER_WALKING:
@@ -137,10 +256,10 @@ static health_level_t detect_hr_level(const max30102_data_t *max)
         //    break;
 
         case USER_RUNNING:
-            very_low_max = HR_RUN_VERY_LOW_MAX;
-            low_max      = HR_RUN_LOW_MAX;
-            normal_max   = HR_RUN_NORMAL_MAX;
-            high_max     = HR_RUN_HIGH_MAX;
+            very_low_max = alert_config.hr_very_low;
+            low_max      = alert_config.hr_low;
+            normal_max   = alert_config.hr_normal;
+            high_max     = alert_config.hr_high;
             break;
 
         default:
@@ -357,14 +476,24 @@ static void handle_max_update(void)
  * ========================================================= */
 
 void alert_manager_task(void *arg)
-{
+{   
+    /* Load threshold configurations */
+    load_threshold_config();
+    
+    /* Main task loop */
     while (1)
     {    
+        /* MAX30102 UPDATE */
         if (max_data_changed() || mpu_state_changed())
         {
             handle_max_update();
         }
 
-        vTaskDelay(pdMS_TO_TICKS(TASK_ALERT_INTERVAL_MS));
+        /* BATTERY UPDATE */
+        /* ... */
+
+        vTaskDelay(pdMS_TO_TICKS( g_sampling_config.sampling_interval_ms));
     }
 }
+
+

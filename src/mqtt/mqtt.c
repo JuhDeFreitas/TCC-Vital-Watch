@@ -1,12 +1,20 @@
 #include "mqtt/mqtt.h"
 
+#include <string.h>
+
 #include "mqtt_client.h"
 #include "esp_log.h"
 #include "device_state.h"
+#include "device_info.h"
+#include "mqtt/payload.h"
+#include "alert_manager.h"
+#include "wifi.h"
 
 static const char *TAG = "MQTT";
 static esp_mqtt_client_handle_t client = NULL;
 static bool mqtt_connected = false;
+
+static void mqtt_receive_data(void *event_data);
 
 static void mqtt_event_handler(void *handler_args,  esp_event_base_t base,  int32_t event_id,  void *event_data)
 {
@@ -15,28 +23,7 @@ static void mqtt_event_handler(void *handler_args,  esp_event_base_t base,  int3
     switch ((esp_mqtt_event_id_t)event_id) {
         case MQTT_EVENT_DATA: {
             ESP_LOGI(TAG, "Mensagem recebida!");
-            
-            ESP_LOGI(TAG, "TOPIC=%.*s\r\n", event->topic_len, event->topic);
-            ESP_LOGI(TAG, "DATA=%.*s\r\n", event->data_len, event->data);
-
-            ESP_LOGI(TAG,"mqtt event data ativado...");
-
-            char data[event->data_len + 1];
-
-            memcpy(data, event->data, event->data_len);
-            data[event->data_len] = '\0';
-
-            ESP_LOGI(TAG, "CMD: %s", data);
-
-            if (strcmp(data, "START") == 0) {
-                set_device_state(DEVICE_START);
-
-            } else if (strcmp(data, "STOP") == 0) {
-                set_device_state(DEVICE_STOP);
-
-            } else if (strcmp(data, "REBOOT") == 0) {
-                set_device_state(DEVICE_REBOOT);
-            }
+            mqtt_receive_data(event_data);
             break;
         }
 
@@ -44,7 +31,10 @@ static void mqtt_event_handler(void *handler_args,  esp_event_base_t base,  int3
             mqtt_connected = true;
             ESP_LOGI(TAG, "Conectado ao broker MQTT");
             mqtt_subscribe(TOPIC_COMMAND);
-            mqtt_subscribe(TOPIC_CONFIG);
+            // mqtt_subscribe(TOPIC_CONFIG);
+            mqtt_subscribe(TOPIC_CONFIG_WIFI);
+            mqtt_subscribe(TOPIC_CONFIG_SAMPLING);
+            mqtt_subscribe(TOPIC_CONFIG_THRESHOLDS);
             break;
 
         case MQTT_EVENT_DISCONNECTED:
@@ -66,6 +56,57 @@ static void mqtt_event_handler(void *handler_args,  esp_event_base_t base,  int3
 
         default:
             break;
+    }
+}
+
+void mqtt_receive_data(void *event_data)
+{
+    esp_mqtt_event_handle_t event = event_data;
+
+    char topic[event->topic_len + 1];
+    char data[event->data_len + 1];
+
+    memcpy(topic, event->topic, event->topic_len);
+    topic[event->topic_len] = '\0';
+
+    memcpy(data, event->data, event->data_len);
+    data[event->data_len] = '\0';
+
+    ESP_LOGI(TAG, "TOPIC: %s", topic);
+    ESP_LOGI(TAG, "DATA : %s", data);
+
+    /* =========================================================
+     * DEVICE COMMAND
+     * ========================================================= */
+     
+    if (strcmp(topic, TOPIC_COMMAND) == 0) {
+
+        if (strcmp(data, "START") == 0) {
+
+            set_device_state(DEVICE_START);
+
+        } else if (strcmp(data, "STOP") == 0) {
+
+            set_device_state(DEVICE_STOP);
+
+        } else if (strcmp(data, "REBOOT") == 0) {
+
+            set_device_state(DEVICE_REBOOT);
+        }
+    }
+
+    /* =========================================================
+     * DEVICE CONFIG
+     * ========================================================= */
+
+    else if (strcmp(topic, TOPIC_CONFIG_WIFI) == 0) {
+        set_wifi_config(data);
+    }
+    else if (strcmp(topic, TOPIC_CONFIG_SAMPLING) == 0) {
+        set_sampling_config(data);
+    }
+    else if (strcmp(topic, TOPIC_CONFIG_THRESHOLDS) == 0) {
+        set_threshold_config(data);
     }
 }
 
@@ -123,7 +164,7 @@ void mqtt_publish_message(const char *topic, const void *payload)
     }
 }
 
-void mqtt_subscribe(char *topic)
+void mqtt_subscribe(const char *topic)
 {
     if (client == NULL) {
         ESP_LOGW(TAG, "Cliente MQTT nulo");

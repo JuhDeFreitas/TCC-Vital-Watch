@@ -12,6 +12,8 @@
 
 #include "mqtt/mqtt.h"
 #include "mqtt/payload.h"
+#include "device_state.h"
+#include "device_info.h"
 
 //extern QueueHandle_t sensor_queue;
 
@@ -176,6 +178,6 @@ void max30102_task(void *pvParameters)
         g_max_data = metrics;
         //xQueueOverwrite(queue, &metrics);
 
-        vTaskDelay(pdMS_TO_TICKS(MAX_TASK_INTERVAL_MS));
+        vTaskDelay(pdMS_TO_TICKS(get_sampling_interval()));
     }
 }

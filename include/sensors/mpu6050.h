@@ -47,6 +47,4 @@ void mpu_gpio_interrupt_init(void);
 
 void mpu_motion_task(void *arg);
 
-
-
 #endif

@@ -59,16 +59,16 @@ TaskHandle_t max30102_handle = NULL;
  * AUXILIARY FUNCTIONS
  * ========================================================= */
 
-
+/**
+ * @brief Initializes the non-volatile storage (NVS) for persistent data storage.
+ */
  void NVM_storage_init(void){
 
     /* Initialize NVS flash storage.*/
     esp_err_t err = nvs_flash_init();
 
-    if (err != ESP_OK)
-    {
+    if (err != ESP_OK){
         ESP_LOGW(TAG, "Failed to initialize NVS");
-
         return;
     }
   }
@@ -80,10 +80,8 @@ void wifi_wait_for_connection(void)
 {   
     wifi_init();
 
-    while (!wifi_is_connected())
-    {
+    while (!wifi_is_connected()) {
         vTaskDelay(pdMS_TO_TICKS(500));
-       // wifi_reconect();
     }
 
     ESP_LOGI(TAG, "Wi-Fi connected");
@@ -98,7 +96,10 @@ void sensors_init(void)
 {
     ESP_LOGI(TAG, "Initializing sensors...");
 
-    /* ============== I2C BUS INITIALIZATION =============== */
+    /** =====================================================
+     * I2C BUS INITIALIZATION
+     * ===================================================== */
+
     i2c_start();
 
     /* =====================================================
@@ -126,7 +127,6 @@ void sensors_init(void)
 
     /* Enable and configure motion interrupt detection */
     mpu_config_motion_interrupt();
-
 
     /* =====================================================
      * MAX30102 - Biometric Sensor Initialization
@@ -160,14 +160,16 @@ void app_main(void)
     /* Initialize persistent storage */
     NVM_storage_init();
 
-    /* Initialize device identity */
-    device_id_init();
-
-    //ESP_LOGI(TAG, "Device ID: %s", device_get_id());
+    /* Load configuration from NVS */
+    load_device_id();
+    load_sampling_config();
+    load_wifi_config();
+    load_threshold_config();
 
     /* Initialize communication and sensor modules */
     wifi_wait_for_connection();
 
+    /* Initialize FSM */
     device_state_manager_init();
 
     mqtt_init();

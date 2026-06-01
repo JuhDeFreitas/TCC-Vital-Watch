@@ -4,25 +4,26 @@
 #include "sensors/max30102.h"
 
 /**
- * @brief Gera payload JSON com dados do MAX30102.
+ * @brief Generates JSON payload with MAX30102 sensor data.
  *
- * @param metrics       Estrutura com heart rate e SpO2.
- * @param buffer        Buffer de saída.
- * @param buffer_size   Tamanho do buffer.
+ * @param metrics       Structure containing heart rate and SpO2.
+ * @param buffer        Output buffer.
+ * @param buffer_size   Size of the output buffer.
  *
- * @return true se sucesso, false caso contrário.
+ * @return true if successful, false otherwise.
  */
 bool build_max30102_payload(const max30102_data_t *metrics, char *buffer, size_t buffer_size);
 
 
 /**
- * @brief Gera payload JSON de alerta.
+ * @brief Generates JSON payload for alerts.
  *
- * @param severity      Nível do alerta (ex: "critical").
- * @param buffer        Buffer de saída.
- * @param buffer_size   Tamanho do buffer.
+ * @param type          Alert type (e.g., "heart_rate", "spo2").
+ * @param severity      Alert severity level (e.g., "critical").
+ * @param buffer        Output buffer.
+ * @param buffer_size   Size of the output buffer.
  *
- * @return true se sucesso, false caso contrário.
+ * @return true if successful, false otherwise.
  */
 bool build_alert_payload(
                         const char *type, 
@@ -30,5 +31,20 @@ bool build_alert_payload(
                         char *buffer, 
                         size_t buffer_size);
 
-#endif
 
+/**
+ * @brief Parses sampling configuration JSON payload.
+ */
+bool parse_sampling_config(const char *data);
+
+/**
+ * @brief Parses Wi-Fi configuration JSON payload.
+ */
+bool parse_wifi_config(const char *data);
+
+/**
+ * @brief Parses threshold configuration JSON payload.
+ */
+bool parse_threshold_config(const char *data);
+
+#endif

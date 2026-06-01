@@ -4,17 +4,139 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_netif.h"
-#include "nvs_flash.h"
+
 #include "lwip/netdb.h"
 #include "lwip/sockets.h"
+#include "nvs.h"
+#include "nvs_flash.h"
 
 #include "device_state.h"
 #include "time_sync.h"
 #include "wifi.h"
 #include "mqtt/mqtt.h"
+#include "mqtt/payload.h"
 
 static const char *TAG = "WIFI";
 static bool s_wifi_connected = false;
+
+static uint32_t s_connect_start_time = 0;
+
+vitalwatch_wifi_config_t g_wifi_config = {
+    .ssid = "Julia",
+    .password = "13020011"
+};
+
+ /* ========================================================= 
+  * WIFI CONFIG 
+  * ========================================================= */
+
+#define NVS_NAMESPACE "wifi_config"
+#define NVS_KEY_WIFI_CONFIG "config"
+
+static bool save_wifi_config(const vitalwatch_wifi_config_t *config)
+{
+    nvs_handle_t nvs_handle;
+
+    esp_err_t err = nvs_open(
+        NVS_NAMESPACE,
+        NVS_READWRITE,
+        &nvs_handle);
+
+    if (err != ESP_OK) {
+        return false;
+    }
+
+    err = nvs_set_blob(
+        nvs_handle,
+        NVS_KEY_WIFI_CONFIG,
+        config,
+        sizeof(*config));
+
+    if (err == ESP_OK) {
+        nvs_commit(nvs_handle);
+    }
+
+    nvs_close(nvs_handle);
+
+    return err == ESP_OK;
+}
+
+bool set_wifi_config(const char *data)
+{   
+    /* Backup current configuration */
+    //vitalwatch_wifi_config_t previous_config = g_wifi_config;
+
+    /* Parse received JSON into g_wifi_config (configuration structure) */
+    if (!parse_wifi_config(data)) {
+        ESP_LOGW(TAG, "Failed to update Wi-Fi configuration.");
+        return false;
+    }
+
+    /* Try to conect to new network */
+    wifi_reconnect();
+
+    for(int i=0; i < 20; i++) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+
+        if (wifi_is_connected()) {
+            save_wifi_config(&g_wifi_config);
+
+            ESP_LOGI(TAG, "Wi-Fi config saved");
+
+            return true;
+        }
+    }
+
+    g_wifi_config = (vitalwatch_wifi_config_t){
+                    .ssid = DEFAULT_WIFI_SSID,
+                    .password = DEFAULT_WIFI_PASSWORD
+    };
+
+    ESP_LOGE(TAG, "Failed to reconnect to Wi-Fi with new configuration. Reverting to previous configuration. SSID: %s", g_wifi_config.ssid);
+    
+    return false;
+
+}
+
+bool load_wifi_config(void)
+{
+    nvs_handle_t nvs_handle;
+
+    size_t required_size = sizeof(g_wifi_config);
+
+    esp_err_t err = nvs_open(
+        NVS_NAMESPACE,
+        NVS_READWRITE,
+        &nvs_handle
+    );
+
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open NVS");
+        return false;
+    }
+
+    err = nvs_get_blob(
+        nvs_handle,
+        NVS_KEY_WIFI_CONFIG,
+        &g_wifi_config,
+        &required_size
+    );
+
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "Wi-Fi config loaded");
+        ESP_LOGI(TAG, "SSID: %s", g_wifi_config.ssid);
+
+        nvs_close(nvs_handle);
+        return true;
+    }
+
+    ESP_LOGW(TAG, "Wi-Fi config not found. Using defaults config.");
+
+
+
+    nvs_close(nvs_handle);
+    return false;
+}
 
 /* =========================================================
  * NETWORK VALIDATION
@@ -96,7 +218,7 @@ static void wifi_event_handler(
 
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
-        wifi_event_sta_disconnected_t *event = (wifi_event_sta_disconnected_t *)event_data;
+        /*wifi_event_sta_disconnected_t *event = (wifi_event_sta_disconnected_t *)event_data;
 
         ESP_LOGW(TAG, "Wi-Fi disconnected. Reason: %d", event->reason);
 
@@ -105,7 +227,33 @@ static void wifi_event_handler(
         set_device_state(DEVICE_STOP);
 
         vTaskDelay(pdMS_TO_TICKS(2000));
-        esp_wifi_connect();
+        esp_wifi_connect();*/
+
+        s_wifi_connected = false;
+        set_device_state(DEVICE_STOP);
+
+        wifi_reconnect();
+
+        uint32_t elapsed_ms = (xTaskGetTickCount() - s_connect_start_time) * portTICK_PERIOD_MS;
+
+        if (elapsed_ms >= 30000)
+        {
+            ESP_LOGE(TAG,
+                    "Could not connect after 30 seconds. "
+                    "Restoring default Wi-Fi configuration.");
+
+
+            g_wifi_config = (vitalwatch_wifi_config_t){
+                .ssid = DEFAULT_WIFI_SSID,
+                .password = DEFAULT_WIFI_PASSWORD
+            };
+
+            save_wifi_config(&g_wifi_config);
+
+            s_connect_start_time = 0;
+
+            esp_restart();
+        }
     }
 
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
@@ -114,6 +262,8 @@ static void wifi_event_handler(
 
         ESP_LOGI(TAG, "IP: " IPSTR, IP2STR(&event->ip_info.ip));
         ESP_LOGI(TAG, "MASK: " IPSTR, IP2STR(&event->ip_info.netmask));
+
+         s_connect_start_time = 0;
 
         if (dns_test() && socket_test()) {
             s_wifi_connected = true;
@@ -148,6 +298,7 @@ void wifi_init(void)
     }
 
     ESP_ERROR_CHECK(ret);
+
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
@@ -178,11 +329,11 @@ void wifi_init(void)
     wifi_config_t wifi_config = {0};
 
     strncpy((char *)wifi_config.sta.ssid,
-            WIFI_SSID,
+            g_wifi_config.ssid,
             sizeof(wifi_config.sta.ssid) - 1);
 
     strncpy((char *)wifi_config.sta.password,
-            WIFI_PASSWORD,
+            g_wifi_config.password,
             sizeof(wifi_config.sta.password) - 1);
 
     wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
@@ -206,22 +357,28 @@ void wifi_start(void)
     ESP_ERROR_CHECK(esp_wifi_start());
 }
 
-void wifi_reconnect(void)
+bool wifi_reconnect(void)
 {
+    if(s_connect_start_time == 0) {
+        s_connect_start_time = xTaskGetTickCount();
+    }
+
     ESP_LOGI(TAG, "Attempting Wi-Fi reconnection...");
 
     esp_err_t err = esp_wifi_connect();
 
-    if (err == ESP_OK) {
-        ESP_LOGI(TAG, "Reconnection started.");
-    } else {
+    if (err != ESP_OK) {
         ESP_LOGE(TAG,
                  "Failed to start Wi-Fi reconnection: %s",
                  esp_err_to_name(err));
+        return false;
     }
+
+    return true;
 }
 
 bool wifi_is_connected(void)
 {
     return s_wifi_connected;
 }
+

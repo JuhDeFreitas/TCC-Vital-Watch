@@ -3,10 +3,11 @@
 
 #include <stdbool.h>
 
-#define PEAK_THRESHOLD       0.35f
+//#define PEAK_THRESHOLD       0.35f
 
-#define MIN_INTERVAL_MS      180
-#define MAX_INTERVAL_MS      500
+//#define MIN_INTERVAL_MS      180
+//#define MAX_INTERVAL_MS      500
+
 
 #define REQUIRED_STEPS       5
 
