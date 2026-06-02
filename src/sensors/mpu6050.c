@@ -205,8 +205,23 @@ void mpu_motion_task(void *arg)
                 }
             }
 
-            vTaskDelay(pdMS_TO_TICKS(40));
+            vTaskDelay(pdMS_TO_TICKS(50));
         }
     }
 }
 
+void mpu_motion_task_suspend(void)
+{
+    if (mpu_motion_task_handle)
+    {
+        vTaskSuspend(mpu_motion_task_handle);
+    }
+}
+
+void mpu_motion_task_resume(void)
+{
+    if (mpu_motion_task_handle)
+    {
+        vTaskResume(mpu_motion_task_handle);
+    }
+}

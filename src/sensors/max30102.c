@@ -181,3 +181,17 @@ void max30102_task(void *pvParameters)
         vTaskDelay(pdMS_TO_TICKS(get_sampling_interval()));
     }
 }
+
+void max30102_task_suspend(void)
+{
+    if(max30102_handle){
+        vTaskSuspend(max30102_handle);
+    }
+}
+
+void max30102_task_resume(void)
+{
+    if(max30102_handle){
+        vTaskResume(max30102_handle);
+    }
+}
