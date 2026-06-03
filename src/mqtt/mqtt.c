@@ -4,7 +4,7 @@
 
 #include "mqtt_client.h"
 #include "esp_log.h"
-#include "device_state.h"
+#include "device_controller.h"
 #include "device_info.h"
 #include "mqtt/payload.h"
 #include "alert_manager.h"
@@ -40,6 +40,7 @@ static void mqtt_event_handler(void *handler_args,  esp_event_base_t base,  int3
         case MQTT_EVENT_DISCONNECTED:
             mqtt_connected = false;
             ESP_LOGW(TAG, "Desconectado do broker MQTT");
+            mqtt_start();
             break;
 
         case MQTT_EVENT_SUBSCRIBED:
@@ -192,6 +193,29 @@ void mqtt_stop(void)
         //client = NULL;
         mqtt_connected = false;
         ESP_LOGI(TAG, "Cliente MQTT parado.");
+    }
+}
+
+void mqtt_disconnect(void)
+{
+    if (client != NULL) {
+        esp_mqtt_client_disconnect(client);
+        mqtt_connected = false;
+        ESP_LOGI(TAG, "Cliente MQTT desconectado.");
+    }
+}
+
+void mqtt_reconnect(void)
+{
+    if (client != NULL) {
+        esp_err_t err = esp_mqtt_client_reconnect(client);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Erro ao reconectar MQTT: %s", esp_err_to_name(err));
+        } else {
+            ESP_LOGI(TAG, "Cliente MQTT reconectado.");
+        }
+    } else {
+        ESP_LOGW(TAG, "Cliente MQTT nulo, não é possível reconectar.");
     }
 }
 

@@ -168,7 +168,7 @@ bool parse_wifi_config(const char *data)
 
     cJSON_Delete(json);
 
-    wifi_reconnect();
+    wifi_connect();
     return true;    
 }
 

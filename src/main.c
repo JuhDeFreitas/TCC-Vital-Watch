@@ -15,7 +15,7 @@
 #include "sensors/max30102_driver.h"
 
 #include "alert_manager.h"
-#include "device_state.h"
+#include "device_controller.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -25,15 +25,12 @@
 
 
 /* =========================================================
- * I2C CONFIGURATION
+ * VARIABLE DECLARATIONS
  * ========================================================= */
+
+static const char *TAG = "MAIN";
 
 #define PATIENT_ID "patient_001"
-
-
-/* =========================================================
- * EXTERNAL TASK DECLARATIONS
- * ========================================================= */
 
 /* MPU6050 motion processing task */
 extern void mpu_motion_task(void *pvParameters);
@@ -46,7 +43,6 @@ extern TaskHandle_t mpu_motion_task_handle;
  * GLOBAL VARIABLES
  * ========================================================= */
 
-static const char *TAG = "MAIN";
 
 /* Global I2C bus mutex */
 SemaphoreHandle_t i2c_mutex = NULL;
@@ -170,9 +166,12 @@ void app_main(void)
     wifi_wait_for_connection();
 
     /* Initialize FSM */
-    device_state_manager_init();
+    //device_state_manager_init();
 
     mqtt_init();
+
+    set_device_state(DEVICE_START);
+    
     sensors_init();
 
     /* Create alert manager task */
@@ -186,8 +185,6 @@ void app_main(void)
     );
 
     ESP_LOGI(TAG, "System started");
-
-    set_device_state(DEVICE_START);
 
     ESP_LOGI(TAG, "System ready. Waiting for MQTT commands...");
 

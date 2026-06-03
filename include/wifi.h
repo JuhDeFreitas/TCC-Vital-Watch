@@ -52,6 +52,11 @@ bool wifi_is_connected(void);
 /**
  * @brief Attempt to reconnect to the configured Wi-Fi network.
  */
-bool wifi_reconnect(void);
+bool wifi_connect(void);
+
+void wifi_disconnect(void);
+
+bool wifi_verify_timeout(void);
+
 
 #endif

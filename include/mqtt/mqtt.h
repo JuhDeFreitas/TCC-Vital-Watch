@@ -36,6 +36,8 @@ void mqtt_publish_message(const char *topic,
                           const void *payload);
 void mqtt_subscribe(const char *topic);
 void mqtt_stop(void);
+void mqtt_disconnect(void);
+void mqtt_reconnect(void);
 void mqtt_start(void);
 
 #endif

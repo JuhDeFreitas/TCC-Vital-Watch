@@ -12,12 +12,14 @@
 
 #include "mqtt/mqtt.h"
 #include "mqtt/payload.h"
-#include "device_state.h"
+#include "device_controller.h"
 #include "device_info.h"
 
 //extern QueueHandle_t sensor_queue;
 
 static const char *TAG = "MAX30102_APP";
+
+TaskHandle_t max30102_task_handle = NULL;
 
 max30102_data_t g_max_data; 
 
@@ -184,14 +186,14 @@ void max30102_task(void *pvParameters)
 
 void max30102_task_suspend(void)
 {
-    if(max30102_handle){
-        vTaskSuspend(max30102_handle);
+    if(max30102_task_handle){
+        vTaskSuspend(max30102_task_handle);
     }
 }
 
 void max30102_task_resume(void)
 {
-    if(max30102_handle){
-        vTaskResume(max30102_handle);
+    if(max30102_task_handle){
+        vTaskResume(max30102_task_handle);
     }
 }
