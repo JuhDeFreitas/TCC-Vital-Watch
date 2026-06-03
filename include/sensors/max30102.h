@@ -15,6 +15,6 @@ typedef struct {
 extern max30102_data_t g_max_data; 
 
 void max30102_task(void *pvParameters);
-
+void max30102_task_init(void);
 void max30102_task_suspend(void);
 void max30102_task_resume(void);

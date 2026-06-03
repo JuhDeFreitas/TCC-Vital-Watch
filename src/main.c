@@ -35,9 +35,6 @@ static const char *TAG = "MAIN";
 /* MPU6050 motion processing task */
 extern void mpu_motion_task(void *pvParameters);
 
-/* MPU6050 task handle */
-extern TaskHandle_t mpu_motion_task_handle;
-
 
 /* =========================================================
  * GLOBAL VARIABLES
@@ -47,8 +44,6 @@ extern TaskHandle_t mpu_motion_task_handle;
 /* Global I2C bus mutex */
 SemaphoreHandle_t i2c_mutex = NULL;
 
-/* Sensor task handles */
-TaskHandle_t max30102_handle = NULL;
 
 
 /* =========================================================
@@ -78,6 +73,7 @@ void wifi_wait_for_connection(void)
 
     while (!wifi_is_connected()) {
         vTaskDelay(pdMS_TO_TICKS(500));
+        
     }
 
     ESP_LOGI(TAG, "Wi-Fi connected");
@@ -102,41 +98,37 @@ void sensors_init(void)
      * MPU6050 - Motion Sensor Initialization
      * ===================================================== */
 
+     mpu_task_init();
     /* Initialize MPU6050 driver */
-    mpu_init();
-
-    /* Configure interrupt GPIO and ISR handler */
-    mpu_gpio_interrupt_init();
-
-    /* Create motion processing task */
-    xTaskCreate(
-        mpu_motion_task,
-        "MPU6050 Motion Task",
-        4096,
-        NULL,
-        5,
-        &mpu_motion_task_handle
-    );
-
-    /* Allow task and ISR stabilization */
-    vTaskDelay(pdMS_TO_TICKS(100));
-
-    /* Enable and configure motion interrupt detection */
-    mpu_config_motion_interrupt();
+//   mpu_init();
+//
+//   /* Configure interrupt GPIO and ISR handler */
+//   mpu_gpio_interrupt_init();
+//
+//   /* Create motion processing task */
+//   xTaskCreate(
+//       mpu_motion_task,
+//       "MPU6050 Motion Task",
+//       4096,
+//       NULL,
+//       5,
+//       &mpu_motion_task_handle
+//   );
+//
+//   mpu_motion_task_suspend();
+//
+//   /* Allow task and ISR stabilization */
+//   vTaskDelay(pdMS_TO_TICKS(100));
+//
+//   /* Enable and configure motion interrupt detection */
+//   mpu_config_motion_interrupt();
 
     /* =====================================================
      * MAX30102 - Biometric Sensor Initialization
      * ===================================================== */
 
     /* Create MAX30102 acquisition task */
-    xTaskCreate(
-        max30102_task,
-        "MAX30102 Task",
-        8192,
-        NULL,
-        5,
-        &max30102_handle
-    );
+    max30102_task_init();
 }
 
 
@@ -169,10 +161,9 @@ void app_main(void)
     //device_state_manager_init();
 
     mqtt_init();
+    sensors_init();
 
     set_device_state(DEVICE_START);
-    
-    sensors_init();
 
     /* Create alert manager task */
     xTaskCreate(

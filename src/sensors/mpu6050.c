@@ -210,6 +210,33 @@ void mpu_motion_task(void *arg)
     }
 }
 
+void mpu_task_init(){
+
+    mpu_init();
+
+    /* Configure interrupt GPIO and ISR handler */
+    mpu_gpio_interrupt_init();
+
+    /* Create motion processing task */
+    xTaskCreate(
+        mpu_motion_task,
+        "MPU6050 Motion Task",
+        4096,
+        NULL,
+        5,
+        &mpu_motion_task_handle
+    );
+
+    mpu_motion_task_suspend();
+
+    /* Allow task and ISR stabilization */
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    /* Enable and configure motion interrupt detection */
+    mpu_config_motion_interrupt();
+
+}
+
 void mpu_motion_task_suspend(void)
 {
     if (mpu_motion_task_handle)

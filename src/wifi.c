@@ -72,7 +72,7 @@ static void set_wifi_to_default(void)
             .password = DEFAULT_WIFI_PASSWORD
         };
 
-    ESP_LOGI(TAG, "SSID: %s", g_wifi_config.ssid);
+    ESP_LOGI(TAG, "Set Wifi to default SSID: %s", g_wifi_config.ssid);
     
     save_wifi_config(&g_wifi_config);
 }
@@ -90,10 +90,11 @@ bool set_wifi_config(const char *data)
 
     /* Try to conect to new network */
     wifi_connect();
-    vTaskDelay(pdMS_TO_TICKS(200));
+    //vTaskDelay(pdMS_TO_TICKS(200));
 
     while( wifi_verify_timeout() == false) {
         vTaskDelay(pdMS_TO_TICKS(1000));
+        ESP_LOGI(TAG, "Conectinng...")
     }
     
     if (wifi_is_connected()) {
@@ -143,8 +144,6 @@ bool load_wifi_config(void)
     }
 
     ESP_LOGW(TAG, "Wi-Fi config not found. Using defaults config.");
-
-
 
     nvs_close(nvs_handle);
     return false;

@@ -184,6 +184,20 @@ void max30102_task(void *pvParameters)
     }
 }
 
+void max30102_task_init(void)
+{
+    xTaskCreate(
+        max30102_task,
+        "MAX30102 Task",
+        8192,
+        NULL,
+        5,
+        &max30102_task_handle
+    );
+
+    max30102_task_suspend();
+}
+
 void max30102_task_suspend(void)
 {
     if(max30102_task_handle){

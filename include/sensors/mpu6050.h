@@ -46,8 +46,8 @@ void mpu_read_accel(
 void mpu_gpio_interrupt_init(void);
 
 void mpu_motion_task(void *arg);
-
- void mpu_motion_task_suspend(void);
+void mpu_task_init(void);
+void mpu_motion_task_suspend(void);
 void mpu_motion_task_resume(void);
 
 #endif
