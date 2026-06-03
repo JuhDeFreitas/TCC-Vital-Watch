@@ -51,6 +51,10 @@ static void handle_device_state(device_state_t new_state)
 
             break;
 
+        //case STATE_PROVISIONING:
+        //    wifi_provisioning_start();
+        //    break;
+
         default:
             ESP_LOGW(TAG, "Invalid device state");
 

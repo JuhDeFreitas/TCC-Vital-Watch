@@ -5,6 +5,7 @@
 #include "nvs_flash.h"
 
 #include "wifi.h"
+#include "wifi_provisioning.h"
 #include "mqtt/mqtt.h"
 #include "device_info.h"
 #include "i2c.h"
@@ -154,16 +155,17 @@ void app_main(void)
     load_wifi_config();
     load_threshold_config();
 
+    /* Initialize AP mode */
+    wifi_provisioning_start();
+    vTaskDelay(pdMS_TO_TICKS(50000));
+
     /* Initialize communication and sensor modules */
     wifi_wait_for_connection();
-
-    /* Initialize FSM */
-    //device_state_manager_init();
 
     mqtt_init();
     sensors_init();
     alert_task_init();
-    
+
     set_device_state(DEVICE_START);
 
     /* Create alert manager task */
