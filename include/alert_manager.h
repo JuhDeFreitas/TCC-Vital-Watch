@@ -86,6 +86,8 @@ extern alert_config_t alert_config;
 
 #define SENSOR_TIMEOUT_SEC         5
 
+#define ALERT_RESEND_INTERVAL pdMS_TO_TICKS(10000) // 10 segundos
+
 /* =========================================================
  * TYPES
  * ========================================================= */
@@ -105,7 +107,7 @@ typedef struct
 {
     uint8_t counter;
     bool active;
-
+    TickType_t last_sent;
 } alert_state_t;
 
 typedef struct

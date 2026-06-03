@@ -346,23 +346,38 @@ static const char *health_level_to_string(health_level_t level)
  * @param type Alert type.
  * @param severity Alert severity.
  */
-static void update_alert(   alert_state_t *alert, 
-                            bool condition, 
-                            const char *type,
-                            const char *severity)
+static void update_alert(alert_state_t *alert, 
+                         bool condition, 
+                         const char *type,
+                         const char *severity)
 {
-    if (condition){
+    TickType_t now = xTaskGetTickCount();
+
+    if (condition)
+    {
         alert->counter++;
+
+        // Primeiro disparo (com debounce)
+        if (alert->counter >= ALERT_DEBOUNCE_COUNT && !alert->active)
+        {
+            trigger_alert(type, severity);
+            alert->active = true;
+            alert->last_sent = now;
+        }
+
+        // REENVIO CONTÍNUO
+        else if (alert->active &&
+                 (now - alert->last_sent) >= g_sampling_config.publish_interval_ms)
+        {
+            trigger_alert(type, severity);
+            alert->last_sent = now;
+        }
     }
-    else{
+    else
+    {
+        // Reset quando volta ao normal
         alert->counter = 0;
         alert->active  = false;
-    }
-
-    if (alert->counter >= ALERT_DEBOUNCE_COUNT && !alert->active){
-        trigger_alert(type, severity);
-
-        alert->active = true;
     }
 }
 
