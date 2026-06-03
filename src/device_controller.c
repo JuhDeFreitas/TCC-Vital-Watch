@@ -8,6 +8,7 @@
 #include "mqtt/mqtt.h"
 #include "sensors/max30102.h"
 #include "sensors/mpu6050.h"
+#include "alert_manager.h"
 
 static const char *TAG = "DEVICE_CONTROLLER";
 
@@ -28,6 +29,7 @@ static void handle_device_state(device_state_t new_state)
 
             mpu_motion_task_suspend();
             max30102_task_suspend();
+            alert_task_suspend();
 
             break;
 
@@ -37,6 +39,7 @@ static void handle_device_state(device_state_t new_state)
             // mqtt_start();
             mpu_motion_task_resume();
             max30102_task_resume();
+            alert_task_resume();
 
             break;
 

@@ -94,7 +94,7 @@ bool set_wifi_config(const char *data)
 
     while( wifi_verify_timeout() == false) {
         vTaskDelay(pdMS_TO_TICKS(1000));
-        ESP_LOGI(TAG, "Conectinng...")
+        ESP_LOGI(TAG, "Conectinng...");
     }
     
     if (wifi_is_connected()) {

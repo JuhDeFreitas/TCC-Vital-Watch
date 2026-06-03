@@ -30,6 +30,8 @@ static activity_state_t last_mpu_state = USER_RESTING;
 static activity_state_t mpu_state = USER_RESTING; 
 static max30102_data_t last_max_data  = {0};
 
+TaskHandle_t alert_task_handle = NULL;
+
 
 alert_config_t alert_config = {
     .hr_very_low = 39,
@@ -475,7 +477,7 @@ static void handle_max_update(void)
  * MAIN TASK
  * ========================================================= */
 
-void alert_manager_task(void *arg)
+void alert_task(void *arg)
 {   
     /* Load threshold configurations */
     load_threshold_config();
@@ -484,10 +486,7 @@ void alert_manager_task(void *arg)
     while (1)
     {    
         /* MAX30102 UPDATE */
-        if (max_data_changed() || mpu_state_changed())
-        {
-            handle_max_update();
-        }
+        handle_max_update();
 
         /* BATTERY UPDATE */
         /* ... */
@@ -495,5 +494,37 @@ void alert_manager_task(void *arg)
         vTaskDelay(pdMS_TO_TICKS( g_sampling_config.sampling_interval_ms));
     }
 }
+
+void alert_task_init(){
+
+    xTaskCreate(
+        alert_task,
+        "alert_manager_task",
+        4096,
+        NULL,
+        5,
+        &alert_task_handle
+    );
+
+    alert_task_suspend();
+}
+
+void alert_task_suspend(void)
+{
+    if (alert_task_handle)
+    {
+        vTaskSuspend(alert_task_handle);
+    }
+}
+
+void alert_task_resume(void)
+{
+    if (alert_task_handle)
+    {
+        vTaskResume(alert_task_handle);
+    }
+}
+
+
 
 

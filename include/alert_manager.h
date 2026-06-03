@@ -155,4 +155,7 @@ void alert_manager_init(QueueHandle_t mpu_q, QueueHandle_t max_q);
  *
  * @param arg Task parameter (unused).
  */
-void alert_manager_task(void *arg);
+void alert_task(void *arg);
+void alert_task_init(void);
+void alert_task_suspend(void);
+void alert_task_resume(void);

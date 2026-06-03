@@ -73,7 +73,7 @@ void wifi_wait_for_connection(void)
 
     while (!wifi_is_connected()) {
         vTaskDelay(pdMS_TO_TICKS(500));
-        
+
     }
 
     ESP_LOGI(TAG, "Wi-Fi connected");
@@ -162,18 +162,20 @@ void app_main(void)
 
     mqtt_init();
     sensors_init();
-
+    alert_task_init();
+    
     set_device_state(DEVICE_START);
 
     /* Create alert manager task */
-    xTaskCreate(
+    /*xTaskCreate(
         alert_manager_task,
         "alert_manager_task",
         4096,
         NULL,
         5,
         NULL
-    );
+    );*/
+    
 
     ESP_LOGI(TAG, "System started");
 
