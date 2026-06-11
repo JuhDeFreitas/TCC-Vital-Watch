@@ -45,20 +45,12 @@ bool max30102_processor_add_sample(
         return true;
     }
 
-    memmove(
-        ctx->red_buffer,
-        &ctx->red_buffer[25],
-        75 * sizeof(uint32_t)
-    );
-
-    memmove(
-        ctx->ir_buffer,
-        &ctx->ir_buffer[25],
-        75 * sizeof(uint32_t)
-    );
+    // Janela deslizante de 1 amostra: descarta a mais antiga, insere a nova no final
+    memmove(ctx->red_buffer, &ctx->red_buffer[1], 99 * sizeof(uint32_t));
+    memmove(ctx->ir_buffer,  &ctx->ir_buffer[1],  99 * sizeof(uint32_t));
 
     ctx->red_buffer[99] = red;
-    ctx->ir_buffer[99] = ir;
+    ctx->ir_buffer[99]  = ir;
 
     static uint8_t update_counter = 0;
 

@@ -17,7 +17,7 @@ static const char *TAG = "MAX30102";
 
 // ==================== CONFIGURAÇÃO MAX30102 ====================
 #define MAX30105_ADDR 0x57
-#define LED_POWER 0x1F              // Potência LED padrão Maxim
+#define LED_POWER 0x5F              // ~19 mA — melhor amplitude AC para SpO2
 #define SAMPLE_AVERAGE 4            // Média de 4 amostras (padrão recomendado)
 #define LED_MODE 2                  // Modo LED: 0=Red only, 1=Red+IR, 2=Red+IR+Green
 #define SAMPLE_RATE 100             // Taxa nativa do MAX30102 (100 Hz)
@@ -133,44 +133,66 @@ static bool max30102_init_sensor(max30105_t *sensor) {
 }
 
 // ==================== PROCESSAMENTO DE DADOS ====================
-static void process_buffer_data(void) {
-    // Algoritmo Maxim espera EXATAMENTE 100 amostras
-    if (n_sample_count < 100) {
-        return; // Aguardar 100 amostras
+// Computa range (max-min) do buffer IR para detectar motion artifact
+static uint32_t ir_signal_range(void) {
+    uint32_t vmin = aun_ir_buffer[0], vmax = aun_ir_buffer[0];
+    for (int i = 1; i < 100; i++) {
+        if (aun_ir_buffer[i] < vmin) vmin = aun_ir_buffer[i];
+        if (aun_ir_buffer[i] > vmax) vmax = aun_ir_buffer[i];
     }
-    
-    // Variáveis temporárias para resultado
+    return vmax - vmin;
+}
+
+static void process_buffer_data(void) {
+    if (n_sample_count < 100) return;
+
+    // ==================== QUALIDADE DE SINAL ====================
+
+    uint32_t ir_dc = aun_ir_buffer[99]; // última amostra como proxy do DC
+
+    // Dedo ausente: IR abaixo de 50.000 indica sem contato
+    if (ir_dc < 50000) {
+        printf("\n[AGUARDANDO] Coloque o dedo no sensor (IR=%lu)\n", ir_dc);
+        return;
+    }
+
+    // Range do IR nos últimos 100 samples (4 segundos a 25 Hz)
+    uint32_t ir_range = ir_signal_range();
+    // < 300 → sinal muito fraco (pressão insuficiente)
+    // > 15000 → artefato de movimento
+    if (ir_range < 300) {
+        printf("\n[SINAL FRACO] Pressione mais o dedo (range IR=%lu)\n", ir_range);
+        return;
+    }
+    if (ir_range > 15000) {
+        printf("\n[MOVIMENTO] Mantenha o dedo parado (range IR=%lu)\n", ir_range);
+        return;
+    }
+
+    // ==================== ALGORITMO ====================
+
     int32_t temp_spo2 = 0;
-    int8_t temp_spo2_valid = 0;
+    int8_t  temp_spo2_valid = 0;
     int32_t temp_hr = 0;
-    int8_t temp_hr_valid = 0;
-    
-    // Chamar algoritmo SPO2 com EXATAMENTE 100 amostras
+    int8_t  temp_hr_valid = 0;
+
     maxim_heart_rate_and_oxygen_saturation(
-        aun_ir_buffer,
-        100,                    // EXATAMENTE 100 como esperado pelo algoritmo Maxim
-        aun_red_buffer,
-        &temp_spo2,
-        &temp_spo2_valid,
-        &temp_hr,
-        &temp_hr_valid
+        aun_ir_buffer, 100, aun_red_buffer,
+        &temp_spo2, &temp_spo2_valid,
+        &temp_hr,   &temp_hr_valid
     );
-    
+
     // ==================== VALIDAÇÕES ====================
-    
-    // Validar SpO2 (95-100% é o normal)
+
     if (temp_spo2_valid && is_value_valid(temp_spo2, 85, 100)) {
         n_spo2 = temp_spo2;
         ch_spo2_valid = 1;
-        spo2_hist_idx = 0; // Reset histórico quando valor válido
     } else {
         ch_spo2_valid = 0;
         n_spo2 = 0;
     }
-    
-    // Validar Heart Rate (40-180 BPM é realista)
+
     if (temp_hr_valid && is_value_valid(temp_hr, 40, 180)) {
-        // Aplicar filtro de mediana para remover picos anômalos
         n_heart_rate = apply_median_filter(temp_hr, hr_history, &hr_hist_idx);
         ch_hr_valid = 1;
     } else {
@@ -183,23 +205,20 @@ static void process_buffer_data(void) {
     printf("╔════════════════════════════════════════╗\n");
     printf("║     LEITURA MAX30102 - SPO2 & HR      ║\n");
     printf("╠════════════════════════════════════════╣\n");
-    
+
     if (ch_spo2_valid) {
         printf("║ SpO2: %3ld%% [VALIDO]                  ║\n", n_spo2);
     } else {
-        printf("║ SpO2: N/A [INVALIDO]                 ║\n");
+        // Mostra valor bruto para diagnóstico (-999 = ratio fora de range)
+        printf("║ SpO2: N/A [raw=%4ld] range IR=%5lu ║\n", temp_spo2, ir_range);
     }
-    
+
     if (ch_hr_valid) {
         printf("║ HR:   %3ld BPM [VALIDO]               ║\n", n_heart_rate);
     } else {
-        printf("║ HR:   N/A BPM [INVALIDO]             ║\n");
+        printf("║ HR:   N/A [raw=%4ld]                 ║\n", temp_hr);
     }
-    
-    printf("║ Status: %lu/100 amostras (%.0f%%)    ║\n", 
-           n_sample_count < 100 ? n_sample_count : 100, 
-           n_sample_count < 100 ? (n_sample_count * 100.0 / 100) : 100.0);
-    printf("║ Taxa: 100 Hz | Algoritmo: Maxim      ║\n");
+
     printf("╚════════════════════════════════════════╝\n");
 }
 
@@ -231,43 +250,39 @@ void app_main(void) {
 
     // Loop principal
     while (1) {
-        uint16_t num_samples = max30105_check(&sensor);
+        // Carrega todas as amostras novas do sensor no ring buffer interno
+        max30105_check(&sensor);
 
-        if (num_samples > 0) {
-            // Obter leituras diretas (SEM suavização - algoritmo já faz isso)
-            uint32_t ir_value = max30105_get_ir(&sensor);
+        // Drena todas as amostras disponíveis antes de dormir
+        while (max30105_available(&sensor)) {
+            uint32_t ir_value  = max30105_get_ir(&sensor);
             uint32_t red_value = max30105_get_red(&sensor);
+            max30105_next_sample(&sensor);
 
             // Armazenar no buffer circular (sliding window)
             if (n_sample_count < 100) {
-                // Primeira vez: preencher sequencial
-                aun_ir_buffer[n_sample_count] = ir_value;
+                aun_ir_buffer[n_sample_count]  = ir_value;
                 aun_red_buffer[n_sample_count] = red_value;
             } else {
-                // Sliding window: mover dados e adicionar novo no final
-                memmove(aun_ir_buffer, &aun_ir_buffer[1], 99 * sizeof(uint32_t));
+                memmove(aun_ir_buffer,  &aun_ir_buffer[1],  99 * sizeof(uint32_t));
                 memmove(aun_red_buffer, &aun_red_buffer[1], 99 * sizeof(uint32_t));
-                aun_ir_buffer[99] = ir_value;
+                aun_ir_buffer[99]  = ir_value;
                 aun_red_buffer[99] = red_value;
             }
 
             n_sample_count++;
 
-            // Exibir amostra a cada 25 leituras
             if (n_sample_count % 25 == 0) {
                 printf("[%5lu] IR: %8lu | RED: %8lu\n", n_sample_count, ir_value, red_value);
             }
 
-            // Processar quando tiver 100 amostras, depois a cada 25 novas amostras
             if (n_sample_count >= 100 && (n_sample_count - 100) % UPDATE_INTERVAL == 0) {
                 process_buffer_data();
                 last_update = n_sample_count;
             }
-
-            max30105_next_sample(&sensor);
         }
 
-        // Pequeno delay para não sobrecarregar o processador
+        // Delay de 10 ms — com 25 Hz efetivo, amostras chegam a cada 40 ms
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }

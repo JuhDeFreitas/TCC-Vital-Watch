@@ -147,23 +147,20 @@ void maxim_heart_rate_and_oxygen_saturation(uint32_t *pun_ir_buffer, int32_t n_i
 
   for ( k=0 ; k<15;k++) an_ir_valley_locs[k]=0;
   // since we flipped signal, we use peak detector as valley detector
-  // CORREÇÃO: Aumentar min_distance de 4 para 10 para evitar picos muito próximos (falsos)
-  maxim_find_peaks( an_ir_valley_locs, &n_npks, an_x, BUFFER_SIZE, n_th1, 10, 15 );//peak_height, peak_distance, max_num_peaks 
+  // min_distance=6 → permite até (25*60)/6 ≈ 250 BPM, validação final limita a 180 BPM
+  maxim_find_peaks( an_ir_valley_locs, &n_npks, an_x, BUFFER_SIZE, n_th1, 6, 15 );//peak_height, peak_distance, max_num_peaks
   n_peak_interval_sum =0;
   if (n_npks>=2){
     for (k=1; k<n_npks; k++) n_peak_interval_sum += (an_ir_valley_locs[k] -an_ir_valley_locs[k -1] ) ;
     n_peak_interval_sum =n_peak_interval_sum/(n_npks-1);
     
-    // CORREÇÃO: Validar intervalo de picos antes de calcular HR
-    // Com 100 Hz e buffer de 100 amostras (1 segundo), intervalo esperado é 25-80 samples para HR 45-240
-    // Com FreqS=25, intervalo esperado é ~6-20 samples para HR 45-240
-    int32_t n_interval_min = 4;  // ~6-8 Hz com FreqS=25, correspondendo a ~360+ BPM (muito alto, descarta)
-    int32_t n_interval_max = 16; // ~75-100 BPM com FreqS=25
-    
+    // FreqS=25 Hz → intervalo esperado: 40 BPM=37 amostras, 180 BPM=8 amostras
+    int32_t n_interval_min = 6;  // acima de ~250 BPM: descarta (também garantido por min_distance=6)
+    int32_t n_interval_max = 37; // abaixo de ~40 BPM: descarta
+
     if (n_peak_interval_sum >= n_interval_min && n_peak_interval_sum <= n_interval_max) {
         *pn_heart_rate =(int32_t)( (FreqS*60)/ n_peak_interval_sum );
-        
-        // Validar range final de HR
+
         if (*pn_heart_rate >= 40 && *pn_heart_rate <= 180) {
             *pch_hr_valid  = 1;
         } else {
@@ -171,7 +168,7 @@ void maxim_heart_rate_and_oxygen_saturation(uint32_t *pun_ir_buffer, int32_t n_i
             *pch_hr_valid  = 0;
         }
     } else {
-        *pn_heart_rate = -999; // unable to calculate because interval out of range
+        *pn_heart_rate = -999;
         *pch_hr_valid  = 0;
     }
   }

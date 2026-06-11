@@ -59,8 +59,18 @@ void max30105_setup(max30105_t *dev, uint8_t powerLevel, uint8_t sampleAverage,
 
     max30105_soft_reset(dev);
 
-    // FIFO rollover - permite que FIFO sobrescreva dados antigos
-    bitmask(dev, 0x08, 0xEF, 0x10);
+    // FIFO config: sample averaging + rollover
+    uint8_t smp_ave;
+    switch (sampleAverage) {
+        case 2:  smp_ave = 0x20; break;
+        case 4:  smp_ave = 0x40; break;
+        case 8:  smp_ave = 0x60; break;
+        case 16: smp_ave = 0x80; break;
+        case 32: smp_ave = 0xA0; break;
+        default: smp_ave = 0x00; break; // 1 sample (no averaging)
+    }
+    // bits [7:5] = SMP_AVE, bit [4] = FIFO_ROLLOVER_EN
+    bitmask(dev, 0x08, 0x1F, smp_ave | 0x10);
 
     // LED mode (Registrador 0x09)
     // Bits [2:0]: Mode
@@ -180,15 +190,15 @@ uint8_t max30105_available(max30105_t *dev) {
 }
 
 uint32_t max30105_get_red(max30105_t *dev) {
-    return dev->sense.red[dev->sense.head];
+    return dev->sense.red[(dev->sense.tail + 1) % STORAGE_SIZE];
 }
 
 uint32_t max30105_get_ir(max30105_t *dev) {
-    return dev->sense.IR[dev->sense.head];
+    return dev->sense.IR[(dev->sense.tail + 1) % STORAGE_SIZE];
 }
 
 uint32_t max30105_get_green(max30105_t *dev) {
-    return dev->sense.green[dev->sense.head];
+    return dev->sense.green[(dev->sense.tail + 1) % STORAGE_SIZE];
 }
 
 void max30105_next_sample(max30105_t *dev) {
