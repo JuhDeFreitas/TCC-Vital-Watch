@@ -23,8 +23,12 @@ void read_max30102_fifo(int32_t *red_data, int32_t *ir_data)
     uint8_t buf[6] = {0};
     uint8_t fifo_reg = REG_FIFO_DATA;
 
-    i2c_sensor_write(&fifo_reg, 1);
-    i2c_sensor_read(buf, 6);
+    // Transação única com repeated start: write(reg) → Sr → read(6 bytes)
+    // Necessário para garantir leitura contínua do FIFO sem perder ponteiro
+    i2c_master_write_read_device(I2C_PORT, MAX30102_ADDR,
+                                 &fifo_reg, 1,
+                                 buf, 6,
+                                 pdMS_TO_TICKS(1000));
 
     // Cada canal ocupa 3 bytes (18 bits úteis, MSB primeiro)
     *red_data = ((int32_t)buf[0] << 16) | ((int32_t)buf[1] << 8) | buf[2];
@@ -37,8 +41,10 @@ void read_max30102_fifo(int32_t *red_data, int32_t *ir_data)
 
 void read_max30102_reg(uint8_t reg_addr, uint8_t *data_reg, size_t bytes_to_read)
 {
-    i2c_sensor_write(&reg_addr, 1);
-    i2c_sensor_read(data_reg, bytes_to_read);
+    i2c_master_write_read_device(I2C_PORT, MAX30102_ADDR,
+                                 &reg_addr, 1,
+                                 data_reg, bytes_to_read,
+                                 pdMS_TO_TICKS(1000));
 }
 
 void write_max30102_reg(uint8_t command, uint8_t reg)
