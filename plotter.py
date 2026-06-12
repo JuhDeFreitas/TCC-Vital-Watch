@@ -71,7 +71,7 @@ def atualizar(_):
 
     return line_ir, line_red
 
-ani = animation.FuncAnimation(fig, atualizar, interval=40, blit=True, cache_frame_data=False)
+ani = animation.FuncAnimation(fig, atualizar, interval=40, blit=False, cache_frame_data=False)
 plt.tight_layout()
 plt.show()
 

@@ -35,7 +35,7 @@ static max_config sensor_cfg = {
     .SPO2_CONF.LED_PW           = 0b11,   // 411 µs — 18-bit
 
     .LED1_PULSE_AMP.LED1_PA     = 0x3F,   // ~12.5 mA RED
-    .LED2_PULSE_AMP.LED2_PA     = 0x7F,   // ~25.4 mA IR (LED IR e menos eficiente, precisa mais corrente)
+    .LED2_PULSE_AMP.LED2_PA     = 0x7F,   // ~25.4 mA IR
 
     .PROX_LED_PULS_AMP.PILOT_PA = 0x7F,
 
