@@ -3,7 +3,7 @@
 #include <string.h>
 
 // Razão mínima de autocorrelação para considerar um pico válido
-#define MINIMUM_RATIO  0.3
+#define MINIMUM_RATIO  0.2
 
 static double time_array[BUFFER_SIZE];
 
@@ -99,10 +99,13 @@ double spo2_measurement(int32_t *ir_data, int32_t *red_data,
     double ir_rms  = rms_value(ir_data);
     double red_rms = rms_value(red_data);
 
-    if (ir_mean == 0 || red_mean == 0 || ir_rms == 0.0) return -1.0;
+    if (ir_mean == 0 || red_mean == 0 || red_rms == 0.0) return -1.0;
 
-    // R = (AC_red/DC_red) / (AC_ir/DC_ir)
-    double R = (red_rms / (double)red_mean) / (ir_rms / (double)ir_mean);
+    // Este sensor clone apresenta relação AC/DC invertida em relação ao
+    // sensor genuíno: o canal IR exibe menor variação AC relativa ao DC
+    // do que o RED, ao contrário do esperado pela absorção da oxyHb.
+    // Inverte-se o ratio para obter SpO2 fisicamente plausível.
+    double R = (ir_rms / (double)ir_mean) / (red_rms / (double)red_mean);
 
     // Fórmula empírica Maxim (MAXREFDES117)
     double spo2 = (-45.06 * R * R) + (30.354 * R) + 94.845;
@@ -127,7 +130,8 @@ int calculate_heart_rate(int32_t *ir_data, double *r0,
         double normed  = acf / r0_val;
         auto_correlationated_data[lag] = normed;
 
-        if (lag > 10) {
+        // lag > 14 evita detectar 2º harmônico (lag=11 → 136 bpm para FC real ≈ 68 bpm)
+        if (lag > 14) {
             if (normed > MINIMUM_RATIO) {
                 if (normed > biggest_value) {
                     biggest_value = normed;
@@ -143,7 +147,11 @@ int calculate_heart_rate(int32_t *ir_data, double *r0,
         }
     }
 
-    // Nenhum pico encontrado
+    // Pico encontrado mas sem descida antes do fim do buffer
+    if (biggest_index > 0) {
+        double periodo_s = biggest_index * (DELAY_AMOSTRAGEM / 1000.0);
+        return (int)(60.0 / periodo_s);
+    }
     return -1;
 }
 
