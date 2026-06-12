@@ -76,6 +76,7 @@ void app_main(void)
         // Coleta BUFFER_SIZE amostras
         for (int i = 0; i < BUFFER_SIZE; i++) {
             read_max30102_fifo(&red_buf[i], &ir_buf[i]);
+            printf("IR:%ld,RED:%ld\n", ir_buf[i], red_buf[i]);
             vTaskDelay(pdMS_TO_TICKS(DELAY_AMOSTRAGEM));
         }
 
