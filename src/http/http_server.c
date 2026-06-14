@@ -4,7 +4,7 @@
 #include "esp_http_server.h"
 #include "esp_log.h"
 
-static const char *TAG = "http_server";
+static const char *TAG = "HTTP SERVER";
 static httpd_handle_t server = NULL;
 
 /* HTML EMBUTIDO (simples por enquanto) */

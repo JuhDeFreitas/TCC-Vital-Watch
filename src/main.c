@@ -156,8 +156,9 @@ void app_main(void)
     load_threshold_config();
 
     /* Initialize AP mode */
-    wifi_provisioning_start();
-    vTaskDelay(pdMS_TO_TICKS(50000));
+    //wifi_provisioning_start();
+    //vTaskDelay(pdMS_TO_TICKS(70000));
+    sensors_init();
 
     /* Initialize communication and sensor modules */
     wifi_wait_for_connection();

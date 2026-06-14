@@ -10,7 +10,7 @@
 #define WIFI_SSID "ESP_AP"
 #define WIFI_PASS "12345678"
 
-static const char *TAG = "wifi_prov";
+static const char *TAG = "WIFI AP";
 
 void wifi_provisioning_start(void)
 {
