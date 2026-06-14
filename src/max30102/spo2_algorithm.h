@@ -1,1 +1,0 @@
-// Substituído por algorithm.h

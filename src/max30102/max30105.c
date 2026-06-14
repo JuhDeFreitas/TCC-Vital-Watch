@@ -1,1 +1,0 @@
-// Não utilizado nesta implementação
