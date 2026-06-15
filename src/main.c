@@ -158,14 +158,15 @@ void app_main(void)
     /* Initialize AP mode */
     //wifi_provisioning_start();
     //vTaskDelay(pdMS_TO_TICKS(70000));
+
     sensors_init();
 
     /* Initialize communication and sensor modules */
-    wifi_wait_for_connection();
+    /*wifi_wait_for_connection();
 
     mqtt_init();
-    sensors_init();
-    alert_task_init();
+    //sensors_init();
+    alert_task_init();*/
 
     set_device_state(DEVICE_START);
 

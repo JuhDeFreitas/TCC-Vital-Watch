@@ -3,8 +3,8 @@
 
 #include <stdbool.h>
 
-#define DEFAULT_WIFI_SSID      "YOONGI"
-#define DEFAULT_WIFI_PASSWORD  "sugasuga"
+#define DEFAULT_WIFI_SSID      "Julia"
+#define DEFAULT_WIFI_PASSWORD  "13020011"
 
 /** Password and Wi-Fi network SSID */
 typedef struct {
