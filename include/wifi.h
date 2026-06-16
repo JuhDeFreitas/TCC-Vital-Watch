@@ -58,5 +58,21 @@ void wifi_disconnect(void);
 
 bool wifi_verify_timeout(void);
 
+/**
+ * @brief Reconfigure WiFi STA with new credentials and attempt to connect.
+ */
+bool wifi_reconfigure(const char *ssid, const char *password);
+
+/**
+ * @brief Enable or disable provisioning mode.
+ * In provisioning mode the event handler skips auto-restart on disconnect.
+ */
+void wifi_set_provisioning_mode(bool enabled);
+
+/**
+ * @brief Persist the current g_wifi_config to NVS.
+ */
+void wifi_save_current_config(void);
+
 
 #endif

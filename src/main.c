@@ -33,6 +33,8 @@ static const char *TAG = "MAIN";
 
 #define PATIENT_ID "patient_001"
 
+#define WIFI_BOOT_TIMEOUT_MS 20000
+
 /* MPU6050 motion processing task */
 extern void mpu_motion_task(void *pvParameters);
 
@@ -51,12 +53,8 @@ SemaphoreHandle_t i2c_mutex = NULL;
  * AUXILIARY FUNCTIONS
  * ========================================================= */
 
-/**
- * @brief Initializes the non-volatile storage (NVS) for persistent data storage.
- */
- void NVM_storage_init(void){
+void NVM_storage_init(void){
 
-    /* Initialize NVS flash storage.*/
     esp_err_t err = nvs_flash_init();
 
     if (err != ESP_OK){
@@ -65,26 +63,6 @@ SemaphoreHandle_t i2c_mutex = NULL;
     }
   }
 
-/**
- * @brief Waits until the Wi-Fi connection is established.
- */
-void wifi_wait_for_connection(void)
-{   
-    wifi_init();
-
-    while (!wifi_is_connected()) {
-        vTaskDelay(pdMS_TO_TICKS(500));
-
-    }
-
-    ESP_LOGI(TAG, "Wi-Fi connected");
-    ESP_LOGI(TAG, " ");
-}
-
-
-/**
- * @brief Initializes all system sensors and related tasks.
- */
 void sensors_init(void)
 {
     ESP_LOGI(TAG, "Initializing sensors...");
@@ -92,6 +70,77 @@ void sensors_init(void)
     i2c_start();
     mpu_task_init();
     max30102_task_init();
+}
+
+/* =========================================================
+ * WIFI WITH AP FALLBACK
+ * ========================================================= */
+
+/**
+ * @brief Poll wifi_is_connected() for up to timeout_ms milliseconds.
+ * @return true if connected within the timeout, false otherwise.
+ */
+static bool wifi_wait_timeout(uint32_t timeout_ms)
+{
+    uint32_t start = xTaskGetTickCount();
+
+    while (!wifi_is_connected()) {
+        uint32_t elapsed = (xTaskGetTickCount() - start) * portTICK_PERIOD_MS;
+        if (elapsed >= timeout_ms) return false;
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+
+    return true;
+}
+
+/**
+ * @brief Connect to WiFi. If the connection fails within 20 s, enter AP
+ *        provisioning mode, serve the configuration page and wait for valid
+ *        credentials. Blocks until a working network connection is established.
+ */
+static void wifi_connect_or_provision(void)
+{
+    wifi_init();
+
+    ESP_LOGI(TAG, "Waiting up to %d s for WiFi...", WIFI_BOOT_TIMEOUT_MS / 1000);
+
+    if (wifi_wait_timeout(WIFI_BOOT_TIMEOUT_MS)) {
+        ESP_LOGI(TAG, "WiFi connected with saved credentials");
+        return;
+    }
+
+    /* Could not connect — start AP provisioning mode */
+    ESP_LOGW(TAG, "No connection after %d s. Entering AP mode.",
+             WIFI_BOOT_TIMEOUT_MS / 1000);
+
+    wifi_provisioning_start();
+
+    while (!wifi_is_connected()) {
+        char new_ssid[32] = {0};
+        char new_pass[64] = {0};
+
+        /* Block until the user submits the web form */
+        wifi_provisioning_wait_credentials(new_ssid, sizeof(new_ssid),
+                                           new_pass, sizeof(new_pass));
+
+        ESP_LOGI(TAG, "Received SSID: %s — testing connection...", new_ssid);
+
+        wifi_reconfigure(new_ssid, new_pass);
+
+        if (wifi_wait_timeout(WIFI_BOOT_TIMEOUT_MS)) {
+            /* Connection successful: save credentials and leave AP mode */
+            wifi_save_current_config();
+            ESP_LOGI(TAG, "Connected! Stopping AP mode.");
+            wifi_provisioning_stop();
+
+            /* Wait for the STA to reconnect after AP mode teardown */
+            while (!wifi_is_connected()) {
+                vTaskDelay(pdMS_TO_TICKS(500));
+            }
+        } else {
+            ESP_LOGW(TAG, "Connection failed. Staying in AP mode.");
+        }
+    }
 }
 
 
@@ -105,7 +154,7 @@ void app_main(void)
     ESP_LOGI(TAG, " ");
     ESP_LOGI(TAG, "=================================");
     ESP_LOGI(TAG, "=========== Vital Watch =========");
-    ESP_LOGI(TAG, "=================================");    
+    ESP_LOGI(TAG, "=================================");
     ESP_LOGI(TAG, " ");
 
     /* Initialize persistent storage */
@@ -117,15 +166,14 @@ void app_main(void)
     load_wifi_config();
     load_threshold_config();
 
-    /* Initialize AP mode */
-    //wifi_provisioning_start();
-    //vTaskDelay(pdMS_TO_TICKS(70000));
+    /* Connect to WiFi or launch AP provisioning if no network is reachable */
+    wifi_connect_or_provision();
 
-    /* Initialize communication and sensor modules */
-    wifi_wait_for_connection();
+    ESP_LOGI(TAG, "Wi-Fi connected");
+    ESP_LOGI(TAG, " ");
 
     mqtt_init();
-    
+
     sensors_init();
 
     alert_task_init();
@@ -134,7 +182,6 @@ void app_main(void)
     set_device_state(DEVICE_START);
 
     ESP_LOGI(TAG, "System started");
-
     ESP_LOGI(TAG, "System ready. Waiting for MQTT commands...");
 
     /* Main loop */

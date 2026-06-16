@@ -18,6 +18,7 @@
 
 static const char *TAG = "WIFI";
 static bool s_wifi_connected = false;
+static bool s_provisioning_mode = false;
 
 static uint32_t s_connect_start_time = 0;
 
@@ -230,13 +231,15 @@ static void wifi_event_handler(
     {
         s_wifi_connected = false;
 
-        set_device_state(DEVICE_STOP);
+        if (!s_provisioning_mode) {
+            set_device_state(DEVICE_STOP);
 
-        wifi_connect();
+            wifi_connect();
 
-        if(wifi_verify_timeout() == true && wifi_is_connected() == false) {
-            set_wifi_to_default();
-            esp_restart();
+            if(wifi_verify_timeout() == true && wifi_is_connected() == false) {
+                set_wifi_to_default();
+                esp_restart();
+            }
         }
     }
 
@@ -256,6 +259,41 @@ static void wifi_event_handler(
             s_wifi_connected = false;
         }
     }
+}
+
+/* =========================================================
+ * WIFI PROVISIONING HELPERS
+ * ========================================================= */
+
+void wifi_set_provisioning_mode(bool enabled)
+{
+    s_provisioning_mode = enabled;
+}
+
+void wifi_save_current_config(void)
+{
+    save_wifi_config(&g_wifi_config);
+}
+
+bool wifi_reconfigure(const char *ssid, const char *password)
+{
+    strncpy(g_wifi_config.ssid, ssid, sizeof(g_wifi_config.ssid) - 1);
+    g_wifi_config.ssid[sizeof(g_wifi_config.ssid) - 1] = '\0';
+    strncpy(g_wifi_config.password, password, sizeof(g_wifi_config.password) - 1);
+    g_wifi_config.password[sizeof(g_wifi_config.password) - 1] = '\0';
+
+    wifi_config_t cfg = {0};
+    strncpy((char *)cfg.sta.ssid, ssid, sizeof(cfg.sta.ssid) - 1);
+    strncpy((char *)cfg.sta.password, password, sizeof(cfg.sta.password) - 1);
+    cfg.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    cfg.sta.pmf_cfg.capable = true;
+    cfg.sta.pmf_cfg.required = false;
+
+    esp_wifi_disconnect();
+    esp_wifi_set_config(WIFI_IF_STA, &cfg);
+
+    s_connect_start_time = 0;
+    return wifi_connect();
 }
 
 /* =========================================================
