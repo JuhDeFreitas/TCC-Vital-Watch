@@ -268,6 +268,7 @@ void max30102_task(void *pvParameters)
                  g_max_data.hr_valid   ? "OK"  : "N/A", (double)g_max_data.heart_rate_bpm,
                  g_max_data.spo2_valid ? "OK"  : "N/A", (double)g_max_data.spo2_percent,
                  R_ratio, corr, r0);
+                 
     }
 }
 

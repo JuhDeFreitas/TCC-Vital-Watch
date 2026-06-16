@@ -486,6 +486,8 @@ static void handle_max_update(void)
         "spo2",
         health_level_to_string(spo2_level)
     );
+
+    
 }
 
 /* =========================================================

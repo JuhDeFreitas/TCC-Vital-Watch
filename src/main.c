@@ -89,46 +89,8 @@ void sensors_init(void)
 {
     ESP_LOGI(TAG, "Initializing sensors...");
 
-    /** =====================================================
-     * I2C BUS INITIALIZATION
-     * ===================================================== */
-
     i2c_start();
-
-    /* =====================================================
-     * MPU6050 - Motion Sensor Initialization
-     * ===================================================== */
-
-     mpu_task_init();
-    /* Initialize MPU6050 driver */
-//   mpu_init();
-//
-//   /* Configure interrupt GPIO and ISR handler */
-//   mpu_gpio_interrupt_init();
-//
-//   /* Create motion processing task */
-//   xTaskCreate(
-//       mpu_motion_task,
-//       "MPU6050 Motion Task",
-//       4096,
-//       NULL,
-//       5,
-//       &mpu_motion_task_handle
-//   );
-//
-//   mpu_motion_task_suspend();
-//
-//   /* Allow task and ISR stabilization */
-//   vTaskDelay(pdMS_TO_TICKS(100));
-//
-//   /* Enable and configure motion interrupt detection */
-//   mpu_config_motion_interrupt();
-
-    /* =====================================================
-     * MAX30102 - Biometric Sensor Initialization
-     * ===================================================== */
-
-    /* Create MAX30102 acquisition task */
+    mpu_task_init();
     max30102_task_init();
 }
 
@@ -159,27 +121,17 @@ void app_main(void)
     //wifi_provisioning_start();
     //vTaskDelay(pdMS_TO_TICKS(70000));
 
-    sensors_init();
-
     /* Initialize communication and sensor modules */
-    /*wifi_wait_for_connection();
+    wifi_wait_for_connection();
 
     mqtt_init();
-    //sensors_init();
-    alert_task_init();*/
-
-    set_device_state(DEVICE_START);
-
-    /* Create alert manager task */
-    /*xTaskCreate(
-        alert_manager_task,
-        "alert_manager_task",
-        4096,
-        NULL,
-        5,
-        NULL
-    );*/
     
+    sensors_init();
+
+    alert_task_init();
+
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    set_device_state(DEVICE_START);
 
     ESP_LOGI(TAG, "System started");
 
