@@ -487,7 +487,11 @@ static void handle_max_update(void)
         health_level_to_string(spo2_level)
     );
 
-    
+    /* Publish vitals payload */
+    char vitals_buf[128];
+    if (build_max30102_payload(&g_max_data, vitals_buf, sizeof(vitals_buf))) {
+        mqtt_publish_message(TOPIC_VITALS, vitals_buf);
+    }
 }
 
 /* =========================================================
@@ -519,7 +523,7 @@ void alert_task_init(){
         "alert_manager_task",
         4096,
         NULL,
-        5,
+        4,
         &alert_task_handle
     );
 

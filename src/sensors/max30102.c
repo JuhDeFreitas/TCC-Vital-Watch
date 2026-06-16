@@ -209,6 +209,7 @@ void max30102_task(void *pvParameters)
     while (1)
     {
         /* --- Collect one analysis window --- */
+        TickType_t last_wake = xTaskGetTickCount();
         for (int i = 0; i < WINDOW_SIZE; i++) {
             if (max30102_read_sample(&raw_red, &raw_ir) == ESP_OK) {
                 s_red[i] = (int32_t)raw_red;
@@ -217,7 +218,7 @@ void max30102_task(void *pvParameters)
                 s_red[i] = 0;
                 s_ir[i]  = 0;
             }
-            vTaskDelay(pdMS_TO_TICKS(SAMPLE_PERIOD_MS));
+            vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(SAMPLE_PERIOD_MS));
         }
 
         /* --- Finger detection via IR DC level --- */
