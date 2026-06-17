@@ -2,6 +2,7 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include <stdio.h>
+#include <string.h>
 
 #include "i2c.h"
 #include "max30102_api.h"
@@ -11,6 +12,45 @@
 #include "device_controller.h"
 
 static const char *TAG = "MAIN";
+
+/* ── MQTT: handlers dos tópicos subscritos ─────────────────────────────────── */
+
+// Compara payload (não null-terminated) com string literal de forma segura
+#define PAYLOAD_IS(p, len, s)  ((len) == (int)sizeof(s)-1 && strncmp((p), (s), (len)) == 0)
+
+static void on_cmd_command(const char *payload, int len)
+{
+    ESP_LOGI(TAG, "COMMAND: %.*s", len, payload);
+
+    if      (PAYLOAD_IS(payload, len, "START"))  device_set_state(DEVICE_START);
+    else if (PAYLOAD_IS(payload, len, "STOP"))   device_set_state(DEVICE_STOP);
+    else if (PAYLOAD_IS(payload, len, "REBOOT")) device_set_state(DEVICE_REBOOT);
+    else    ESP_LOGW(TAG, "Comando desconhecido: %.*s", len, payload);
+}
+
+static void on_cmd_config(const char *payload, int len)
+{
+    ESP_LOGI(TAG, "CONFIG: %.*s", len, payload);
+    // payload esperado: JSON genérico de configuração
+}
+
+static void on_cmd_config_wifi(const char *payload, int len)
+{
+    ESP_LOGI(TAG, "CONFIG/WIFI: %.*s", len, payload);
+    // payload esperado: {"ssid":"nome","password":"senha"}
+}
+
+static void on_cmd_config_sampling(const char *payload, int len)
+{
+    ESP_LOGI(TAG, "CONFIG/SAMPLING: %.*s", len, payload);
+    // payload esperado: {"interval_ms":1000}
+}
+
+static void on_cmd_config_thresholds(const char *payload, int len)
+{
+    ESP_LOGI(TAG, "CONFIG/THRESHOLDS: %.*s", len, payload);
+    // payload esperado: {"bpm_min":50,"bpm_max":120,"spo2_min":94}
+}
 
 /* PRIVATE FUNCTIONS ------------------------------------------------------------- */
 
@@ -62,6 +102,13 @@ void app_main(void)
             .client_cert = NULL,
             .client_key  = NULL,
         };
+        /* Registra handlers antes do init — subscrições são feitas dentro do init */
+        mqtt_manager_on_command           (on_cmd_command);
+        mqtt_manager_on_config            (on_cmd_config);
+        mqtt_manager_on_config_wifi       (on_cmd_config_wifi);
+        mqtt_manager_on_config_sampling   (on_cmd_config_sampling);
+        mqtt_manager_on_config_thresholds (on_cmd_config_thresholds);
+
         ESP_ERROR_CHECK(mqtt_manager_init(&mqtt_cfg));
         ESP_ERROR_CHECK(i2c_init());
         ESP_ERROR_CHECK(mpu6050_init(on_motion));
