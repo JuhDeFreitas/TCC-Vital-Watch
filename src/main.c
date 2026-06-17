@@ -43,7 +43,7 @@ void app_main(void)
     /* Inicilização dos sensores */
     ESP_ERROR_CHECK(i2c_init());
     ESP_ERROR_CHECK(mpu6050_init(on_motion));
-    //ESP_ERROR_CHECK(max30102_init(on_vitals));
+    ESP_ERROR_CHECK(max30102_init(on_vitals));
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));

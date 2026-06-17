@@ -6,6 +6,8 @@
 #include "freertos/task.h"
 #include <stdio.h>
 
+#define TELEPLOT_ENABLED 0   // 0 para desativar
+
 static const char *TAG = "MAX30102";
 
 static max30102_result_cb_t s_result_cb = NULL;
@@ -63,7 +65,10 @@ static void max30102_task(void *arg)
         // Coleta BUFFER_SIZE amostras e envia para Teleplot em tempo real
         for (int i = 0; i < BUFFER_SIZE; i++) {
             read_max30102_fifo(&red_buf[i], &ir_buf[i]);
-            printf(">IR:%ld\n>RED:%ld\n", (long)ir_buf[i], (long)red_buf[i]);
+            #if TELEPLOT_ENABLED
+                printf(">IR:%ld\n>RED:%ld\n", (long)ir_buf[i], (long)red_buf[i]);
+            #endif
+            //printf(">IR:%ld\n>RED:%ld\n", (long)ir_buf[i], (long)red_buf[i]);
             vTaskDelay(pdMS_TO_TICKS(DELAY_AMOSTRAGEM));
         }
 
