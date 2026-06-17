@@ -63,7 +63,7 @@ typedef enum { STATE_IDLE, STATE_CONFIRMING, STATE_RUNNING } run_state_t;
 static void mpu6050_step_task(void *arg)
 {
     uint8_t    raw[6];
-    int16_t    ax, ay, az;
+    int16_t    ax;
     bool       above         = false;
     uint32_t   last_peak_ms  = 0;
     uint32_t   last_valid_ms = 0;
@@ -91,8 +91,7 @@ static void mpu6050_step_task(void *arg)
         if (mpu_read(MPU_REG_ACCEL_XOUT_H, raw, 6) != ESP_OK) continue;
 
         ax = (int16_t)((raw[0] << 8) | raw[1]);
-        ay = (int16_t)((raw[2] << 8) | raw[3]);
-        az = (int16_t)((raw[4] << 8) | raw[5]);
+        // raw[2..5] (ay, az) lidos mas não usados — detecção só no eixo X (pulso)
 
         // Inicializa o EMA na primeira leitura para evitar falsos positivos
         // durante o aquecimento do filtro.

@@ -10,4 +10,11 @@ idf_component_register(
         "i2c"
         "max30102"
         "mpu6050"
+        "wifi"
+    REQUIRES
+        esp_wifi
+        esp_event
+        esp_netif
+        esp_http_server
+        nvs_flash
 )
