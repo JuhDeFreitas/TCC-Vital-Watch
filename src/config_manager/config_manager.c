@@ -14,13 +14,21 @@ sampling_config_t g_sampling_config = {
 };
 
 alert_config_t g_alert_config = {
-    .hr_very_low            = 40,
-    .hr_low                 = 50,
-    .hr_normal              = 100,
-    .hr_high                = 130,
-    .hr_very_high           = 160,
-    .spo2_very_low          = 90,
-    .spo2_low               = 94,
+    /* FC repouso — OMS/AHA */
+    .hr_very_low            = 50,    // < 50  → muito baixa
+    .hr_low                 = 60,    // < 60  → baixa  (50-59)
+    .hr_high                = 101,   // >=101 → alta   (101-120)
+    .hr_very_high           = 121,   // >=121 → muito alta (>120)
+
+    /* FC corrida — OMS/AHA */
+    .hr_running_very_low    = 100,   // <100  → muito baixa em corrida
+    .hr_running_low         = 110,   // <110  → baixa  (100-109)
+    .hr_running_high        = 150,   // >=150 → alta   (150-170)
+    .hr_running_very_high   = 171,   // >=171 → muito alta (>170)
+
+    /* SpO2 — OMS */
+    .spo2_very_low          = 89,    // <=89  → muito baixa (<90%)
+    .spo2_low               = 94,    // <=94  → baixa  (90-94%)
     .spo2_normal            = 100,
     .motion_threshold       = 1.5f,
     .motion_min_interval_ms = 200,
@@ -104,7 +112,7 @@ bool config_parse_wifi(const char *payload, int len)
  * THRESHOLD CONFIG
  * Payload (todos os campos são opcionais):
  * {
- *   "hr_very_low": 40,  "hr_low": 50, "hr_normal": 100,
+ *   "hr_very_low": 50, "hr_low": 60, "hr_high": 101, "hr_very_high": 121,
  *   "hr_high": 130,     "hr_very_high": 160,
  *   "spo2_very_low": 90, "spo2_low": 94, "spo2_normal": 100,
  *   "motion_threshold": 1.5,
@@ -130,14 +138,24 @@ bool config_parse_thresholds(const char *payload, int len)
     item = cJSON_GetObjectItem(json, "hr_low");
     if (cJSON_IsNumber(item)) g_alert_config.hr_low = (uint8_t)item->valueint;
 
-    item = cJSON_GetObjectItem(json, "hr_normal");
-    if (cJSON_IsNumber(item)) g_alert_config.hr_normal = (uint8_t)item->valueint;
 
     item = cJSON_GetObjectItem(json, "hr_high");
     if (cJSON_IsNumber(item)) g_alert_config.hr_high = (uint8_t)item->valueint;
 
     item = cJSON_GetObjectItem(json, "hr_very_high");
     if (cJSON_IsNumber(item)) g_alert_config.hr_very_high = (uint8_t)item->valueint;
+
+    item = cJSON_GetObjectItem(json, "hr_running_very_low");
+    if (cJSON_IsNumber(item)) g_alert_config.hr_running_very_low = (uint8_t)item->valueint;
+
+    item = cJSON_GetObjectItem(json, "hr_running_low");
+    if (cJSON_IsNumber(item)) g_alert_config.hr_running_low = (uint8_t)item->valueint;
+
+    item = cJSON_GetObjectItem(json, "hr_running_high");
+    if (cJSON_IsNumber(item)) g_alert_config.hr_running_high = (uint8_t)item->valueint;
+
+    item = cJSON_GetObjectItem(json, "hr_running_very_high");
+    if (cJSON_IsNumber(item)) g_alert_config.hr_running_very_high = (uint8_t)item->valueint;
 
     item = cJSON_GetObjectItem(json, "spo2_very_low");
     if (cJSON_IsNumber(item)) g_alert_config.spo2_very_low = (uint8_t)item->valueint;

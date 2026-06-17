@@ -9,6 +9,8 @@ idf_component_register(
         "."
         "device_controller"
         "config_manager"
+        "alert_manager"
+        "time_sync"
         "i2c"
         "max30102"
         "mpu6050"

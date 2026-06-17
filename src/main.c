@@ -3,14 +3,17 @@
 #include "esp_log.h"
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "i2c.h"
 #include "max30102_api.h"
 #include "mpu6050.h"
+#include "time_sync.h"
 #include "wifi_manager.h"
 #include "mqtt_manager.h"
 #include "device_controller.h"
 #include "config_manager.h"
+#include "alert_manager.h"
 
 static const char *TAG = "MAIN";
 
@@ -62,8 +65,10 @@ static void on_motion(mpu6050_event_t event, uint32_t cadence_spm)
 {
     if (event == MPU_EVENT_RUNNING) {
         ESP_LOGI("MPU6050", "Correndo: %lu spm", (unsigned long)cadence_spm);
+        alert_manager_set_state(PATIENT_RUNNING);
     } else {
         ESP_LOGI("MPU6050", "Parou de correr");
+        alert_manager_set_state(PATIENT_RESTING);
     }
 }
 
@@ -76,8 +81,22 @@ static void on_vitals(int bpm, double spo2)
 
     ESP_LOGI(TAG, "BPM: %d | SpO2: %.1f%%", bpm, spo2);
 
-    char payload[64];
-    snprintf(payload, sizeof(payload), "{\"bpm\":%d,\"spo2\":%.1f}", bpm, spo2);
+    alert_manager_check(bpm, spo2);
+
+    time_t now = 0;
+    time(&now);
+
+    char payload[128];
+    if (time_is_synced()) {
+        snprintf(payload, sizeof(payload),
+                 "{\"bpm\":%d,\"spo2\":%.1f,\"timestamp\":%lld}",
+                 bpm, spo2, (long long)now);
+    } else {
+        snprintf(payload, sizeof(payload),
+                 "{\"bpm\":%d,\"spo2\":%.1f}",
+                 bpm, spo2);
+    }
+
     mqtt_manager_publish(TOPIC_VITALS, payload, 1, 0);
 }
 
@@ -114,6 +133,7 @@ void app_main(void)
         mqtt_manager_on_config_thresholds (on_cmd_config_thresholds);
 
         ESP_ERROR_CHECK(mqtt_manager_init(&mqtt_cfg));
+        time_sync_init();
         ESP_ERROR_CHECK(i2c_init());
         ESP_ERROR_CHECK(mpu6050_init(on_motion));
         ESP_ERROR_CHECK(max30102_init(on_vitals));

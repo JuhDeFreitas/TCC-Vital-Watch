@@ -3,21 +3,18 @@
 #include "esp_sntp.h"
 #include "esp_log.h"
 
-static const char *TAG = "SNTP";
-
 /**
  * @brief Initialize SNTP client and start time synchronization.
  */
 void time_sync_init(void)
 {
-    if (esp_sntp_enabled())
-    {
+    if (esp_sntp_enabled()) {
         return;
     }
 
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "pool.ntp.org");
-    sntp_init();
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
+    esp_sntp_init();
 }
 
 /**
