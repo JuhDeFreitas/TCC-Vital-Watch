@@ -147,7 +147,14 @@ typedef struct {
 
 } max_config;
 
-void  max30102_init(max_config *configuration);
+// Callback invocado a cada janela de 128 amostras processada.
+// bpm == -1 ou spo2 < 0 indica sinal inválido / dedo ausente.
+typedef void (*max30102_result_cb_t)(int bpm, double spo2);
+
+// Inicializa o sensor com a configuração padrão e inicia a task de medição.
+esp_err_t max30102_init(max30102_result_cb_t on_result);
+
+// Acesso de baixo nível (debug)
 void  write_max30102_reg(uint8_t command, uint8_t reg);
 void  read_max30102_fifo(int32_t *red_data, int32_t *ir_data);
 void  read_max30102_reg(uint8_t reg_addr, uint8_t *data_reg, size_t bytes_to_read);
