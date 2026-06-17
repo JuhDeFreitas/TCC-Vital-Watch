@@ -8,6 +8,7 @@ idf_component_register(
     INCLUDE_DIRS
         "."
         "device_controller"
+        "config_manager"
         "i2c"
         "max30102"
         "mpu6050"
@@ -20,4 +21,5 @@ idf_component_register(
         esp_http_server
         nvs_flash
         mqtt
+        json
 )

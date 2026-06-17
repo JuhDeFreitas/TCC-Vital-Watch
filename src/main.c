@@ -10,6 +10,7 @@
 #include "wifi_manager.h"
 #include "mqtt_manager.h"
 #include "device_controller.h"
+#include "config_manager.h"
 
 static const char *TAG = "MAIN";
 
@@ -30,26 +31,29 @@ static void on_cmd_command(const char *payload, int len)
 
 static void on_cmd_config(const char *payload, int len)
 {
+    // Tópico genérico — redireciona para os sub-tópicos específicos conforme o conteúdo
     ESP_LOGI(TAG, "CONFIG: %.*s", len, payload);
-    // payload esperado: JSON genérico de configuração
 }
 
 static void on_cmd_config_wifi(const char *payload, int len)
 {
+    // {"ssid":"MinhaRede","password":"minhaSenha"}
     ESP_LOGI(TAG, "CONFIG/WIFI: %.*s", len, payload);
-    // payload esperado: {"ssid":"nome","password":"senha"}
+    config_parse_wifi(payload, len);
 }
 
 static void on_cmd_config_sampling(const char *payload, int len)
 {
+    // {"sampling_interval_ms":1000,"publish_interval_ms":2000}
     ESP_LOGI(TAG, "CONFIG/SAMPLING: %.*s", len, payload);
-    // payload esperado: {"interval_ms":1000}
+    config_parse_sampling(payload, len);
 }
 
 static void on_cmd_config_thresholds(const char *payload, int len)
 {
+    // {"hr_very_low":40,"hr_low":50,...,"spo2_low":94,...}
     ESP_LOGI(TAG, "CONFIG/THRESHOLDS: %.*s", len, payload);
-    // payload esperado: {"bpm_min":50,"bpm_max":120,"spo2_min":94}
+    config_parse_thresholds(payload, len);
 }
 
 /* PRIVATE FUNCTIONS ------------------------------------------------------------- */
