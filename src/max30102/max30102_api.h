@@ -153,6 +153,8 @@ typedef void (*max30102_result_cb_t)(int bpm, double spo2);
 
 // Inicializa o sensor com a configuração padrão e inicia a task de medição.
 esp_err_t max30102_init(max30102_result_cb_t on_result);
+void      max30102_suspend(void);
+void      max30102_resume(void);
 
 // Acesso de baixo nível (debug)
 void  write_max30102_reg(uint8_t command, uint8_t reg);

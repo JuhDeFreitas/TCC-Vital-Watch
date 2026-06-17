@@ -296,3 +296,6 @@ esp_err_t mpu6050_init(mpu6050_motion_cb_t on_motion)
              RUN_CONFIRM_STEPS);
     return ESP_OK;
 }
+
+void mpu6050_suspend(void) { if (s_task_handle) vTaskSuspend(s_task_handle); }
+void mpu6050_resume(void)  { if (s_task_handle) vTaskResume(s_task_handle);  }

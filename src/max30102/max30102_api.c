@@ -10,7 +10,8 @@
 
 static const char *TAG = "MAX30102";
 
-static max30102_result_cb_t s_result_cb = NULL;
+static max30102_result_cb_t s_result_cb   = NULL;
+static TaskHandle_t         s_task_handle = NULL;
 
 // Configuração idêntica à do commit "FUNCIONOU!!!!! PERFEITO"
 static const max_config s_default_cfg = {
@@ -148,11 +149,14 @@ esp_err_t max30102_init(max30102_result_cb_t on_result)
 
     init_time_array();
 
-    xTaskCreate(max30102_task, "max30102", 8192, NULL, 5, NULL);
+    xTaskCreate(max30102_task, "max30102", 8192, NULL, 5, &s_task_handle);
 
     ESP_LOGI(TAG, "Inicializado (SpO2, 25 Hz efetivo, 18-bit ADC)");
     return ESP_OK;
 }
+
+void max30102_suspend(void) { if (s_task_handle) vTaskSuspend(s_task_handle); }
+void max30102_resume(void)  { if (s_task_handle) vTaskResume(s_task_handle);  }
 
 // ---- Acesso de baixo nível -------------------------------------------------
 

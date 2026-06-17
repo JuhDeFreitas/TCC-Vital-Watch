@@ -62,5 +62,7 @@ typedef void (*mpu6050_motion_cb_t)(mpu6050_event_t event, uint32_t cadence_spm)
 
 esp_err_t mpu6050_init(mpu6050_motion_cb_t on_motion);
 uint8_t   mpu6050_who_am_i(void);
+void      mpu6050_suspend(void);
+void      mpu6050_resume(void);
 
 #endif
