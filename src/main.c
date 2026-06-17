@@ -10,14 +10,12 @@ static const char *TAG = "MAIN";
 
 /* PRIVATE FUNCTIONS ------------------------------------------------------------- */
 
-static void on_step_detected(uint32_t cadence_spm)
+static void on_motion(mpu6050_event_t event, uint32_t cadence_spm)
 {
-    if (cadence_spm >= 120)
-        ESP_LOGI("MPU6050", "Corrida! cadencia=%lu spm", (unsigned long)cadence_spm);
-    else if (cadence_spm >= 80)
-        ESP_LOGI("MPU6050", "Caminhada rapida: %lu spm", (unsigned long)cadence_spm);
+    if (event == MPU_EVENT_RUNNING)
+        ESP_LOGI("MPU6050", "Correndo: %lu spm", (unsigned long)cadence_spm);
     else
-        ESP_LOGI("MPU6050", "Passo detectado");
+        ESP_LOGI("MPU6050", "Parou de correr");
 }
 
 static void on_vitals(int bpm, double spo2)
@@ -30,7 +28,6 @@ static void on_vitals(int bpm, double spo2)
     /* Call alert Manager*/
 
     /* MQTT Publish */
-
     
     ESP_LOGI(TAG, "BPM: %d | SpO2: %.1f%%", bpm, spo2);
 }
@@ -45,8 +42,8 @@ void app_main(void)
 
     /* Inicilização dos sensores */
     ESP_ERROR_CHECK(i2c_init());
-    ESP_ERROR_CHECK(mpu6050_init(on_step_detected));
-    ESP_ERROR_CHECK(max30102_init(on_vitals));
+    ESP_ERROR_CHECK(mpu6050_init(on_motion));
+    //ESP_ERROR_CHECK(max30102_init(on_vitals));
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));
