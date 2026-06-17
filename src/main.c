@@ -8,6 +8,8 @@
 
 static const char *TAG = "MAIN";
 
+/* PRIVATE FUNCTIONS ------------------------------------------------------------- */
+
 static void on_step_detected(uint32_t cadence_spm)
 {
     if (cadence_spm >= 120)
@@ -24,9 +26,16 @@ static void on_vitals(int bpm, double spo2)
         ESP_LOGW(TAG, "Sinal fraco ou dedo ausente (bpm=%d, spo2=%.1f)", bpm, spo2);
         return;
     }
+
+    /* Call alert Manager*/
+
+    /* MQTT Publish */
+
     
     ESP_LOGI(TAG, "BPM: %d | SpO2: %.1f%%", bpm, spo2);
 }
+
+/* PUBLIC FUNCTION ------------------------------------------------------------------ */
 
 void app_main(void)
 {
@@ -34,6 +43,7 @@ void app_main(void)
     ESP_LOGI(TAG, "        VITALS WATCH           ");
     ESP_LOGI(TAG, "-------------------------------");
 
+    /* Inicilização dos sensores */
     ESP_ERROR_CHECK(i2c_init());
     ESP_ERROR_CHECK(mpu6050_init(on_step_detected));
     ESP_ERROR_CHECK(max30102_init(on_vitals));
